@@ -34,7 +34,17 @@ GENES = {
     "padrao":           (0.0, 5.99, 0.15, 1.0),   # liso, listras, pintas, anéis, escamas, manchas
     "densidade_padrao": (0.0, 1.0, 0.05, 0.5),
     "matiz_padrao":     (0.0, 360.0, 8.0, 0.5),
+    # genes de forma: o plano corporal muda o corpo inteiro (só muda em saltos raros)
+    "plano":            (0.0, 11.99, 0.0, 4.0),   # oval, lagarta, geleia, aranha, caracol, ave,
+                                                  # cogumelo, estrela, cristal, balão, lagarto, peixe
+    "segmentos":        (2.0, 9.0, 0.2, 0.8),
+    "cabeca":           (0.0, 1.0, 0.04, 0.8),
+    "pescoco":          (0.0, 1.0, 0.04, 0.6),
+    "lados":            (3.0, 9.0, 0.2, 0.6),
+    "ondulacao":        (0.0, 1.0, 0.04, 0.6),
 }
+GENES_FORMA = ["plano", "segmentos", "cabeca", "pescoco", "lados", "ondulacao"]
+PLANOS = 12
 
 GENES_CIRCULARES = {"matiz", "matiz_padrao"}  # cores dão a volta: 359 fica pertinho de 0
 
@@ -45,6 +55,8 @@ MAX_ENFEITES = 8
 
 def _limitar(nome, valor):
     minimo, maximo = GENES[nome][0], GENES[nome][1]
+    if nome == "plano":
+        return int(max(0, min(PLANOS - 1, valor)))
     if nome in GENES_CIRCULARES:
         return round(valor % 360.0, 3)
     return round(max(minimo, min(maximo, valor)), 4)
@@ -97,6 +109,11 @@ def mutar(pai, rng, intensidade=1.0):
     filho = {}
     for nome, (minimo, maximo, passo, _) in GENES.items():
         valor = pai[nome]
+        if nome == "plano":  # o corpo inteiro só muda num salto raro
+            if rng.random() < 0.004 * intensidade:
+                valor = rng.randrange(PLANOS)
+            filho[nome] = valor
+            continue
         if rng.random() < 0.3 * intensidade:
             valor += rng.gauss(0, passo * intensidade)
         if rng.random() < 0.003 * intensidade:  # mutação rara e grande: um "salto"
@@ -122,6 +139,8 @@ def distancia(a, b, enfeites=True):
     total, pesos = 0.0, 0.0
     for nome, (minimo, maximo, _, peso) in GENES.items():
         diff = abs(a[nome] - b[nome])
+        if nome == "plano":
+            diff = 0.0 if a[nome] == b[nome] else maximo - minimo  # corpo diferente = diferença total
         if nome in GENES_CIRCULARES:
             diff = min(diff, 360 - diff) / 180.0
         else:
@@ -143,7 +162,10 @@ def representante(genomas):
     Naturalistas chamam isso de holótipo: o exemplar que representa a espécie."""
     media = {}
     for nome in GENES:
-        if nome in GENES_CIRCULARES:
+        if nome == "plano":  # o plano mais comum do grupo
+            planos = [g[nome] for g in genomas]
+            media[nome] = max(set(planos), key=planos.count)
+        elif nome in GENES_CIRCULARES:
             sx = sum(math.cos(math.radians(g[nome])) for g in genomas)
             sy = sum(math.sin(math.radians(g[nome])) for g in genomas)
             media[nome] = math.degrees(math.atan2(sy, sx)) % 360
@@ -151,6 +173,14 @@ def representante(genomas):
             media[nome] = sum(g[nome] for g in genomas) / len(genomas)
     melhor = min(genomas, key=lambda g: distancia(g, media, enfeites=False))
     return copiar(melhor)
+
+
+def completar_forma(g, rng):
+    """Dá genes de forma a um genoma antigo, que nasceu antes deles existirem."""
+    for nome in GENES_FORMA:
+        if nome not in g:
+            minimo, maximo = GENES[nome][0], GENES[nome][1]
+            g[nome] = _limitar(nome, rng.uniform(minimo, maximo))
 
 
 def dieta_nome(g):

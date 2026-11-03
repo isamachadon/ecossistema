@@ -62,7 +62,8 @@ def nova_especie(estado, rng, holotipo, pai, origem):
         genero = nomes.genero(rng)
     esp = {"id": eid, "pai": pai, "nascimento": estado["periodo"], "extincao": None,
            "origem": origem, "genero": genero, "epiteto": epiteto,
-           "apelido_sugerido": nomes.apelido(holotipo, rng),
+           "apelido_sugerido": nomes.apelido_unico(
+               holotipo, rng, [e["apelido_sugerido"] for e in estado["especies"].values()]),
            "tipo": holotipo, "pop": 0, "pico": 0}
     estado["especies"][str(eid)] = esp
     return esp

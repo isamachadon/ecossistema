@@ -74,7 +74,28 @@ def carregar():
     rng = random.Random()
     s = estado["rng"]
     rng.setstate((s[0], tuple(s[1]), s[2]))
+    _migrar(estado)
     return estado, rng
+
+
+def _migrar(estado):
+    """Espécies que nasceram antes dos genes de forma existirem ganham um corpo sorteado
+    (o mesmo pra espécie toda) e um nome que combine com ele."""
+    for e in estado["especies"].values():
+        if "plano" in e["tipo"]:
+            continue
+        sorteio = random.Random(estado["semente"] * 1000 + e["id"])
+        extra = {}
+        genes.completar_forma(extra, sorteio)
+        e["tipo"].update(extra)
+        for c in estado["criaturas"]:
+            if c["esp"] == e["id"]:
+                c["g"].update(extra)
+        outros = [o["apelido_sugerido"] for o in estado["especies"].values() if o is not e]
+        e["apelido_sugerido"] = nomes.apelido_unico(e["tipo"], sorteio, outros)
+    for c in estado["criaturas"]:  # segurança: ninguém fica sem gene de forma
+        if "plano" not in c["g"]:
+            c["g"].update({k: estado["especies"][str(c["esp"])]["tipo"][k] for k in genes.GENES_FORMA})
 
 
 def avancar_periodo(estado, rng):
@@ -110,7 +131,8 @@ def escrever_diario(estado, quadros, info):
         "largura": mundo.LARGURA, "altura": mundo.ALTURA, "cel": mundo.CEL,
         "biomas": estado["biomas"], "populacao": len(estado["criaturas"]),
         "ultimo_resumo": estado["ultimo_resumo"],
-        "eventos_ativos": [{"nome": ev["nome"], "texto": ev["texto"], "restam": ev["restam"]}
+        "eventos_ativos": [{"nome": ev["nome"], "texto": ev["texto"], "restam": ev["restam"],
+                            "tipo": ev["tipo"], "bioma": ev["bioma"]}
                            for ev in estado["eventos_ativos"]],
         "especies": lista,
         "historia": estado["historia"][-600:],
@@ -129,7 +151,7 @@ def _legivel(texto, estado, apelidos):
 
     def trocar(m):
         e = estado["especies"][m.group(1)]
-        return apelidos.get(m.group(1)) or f"{e['genero']} {e['epiteto']}"
+        return apelidos.get(m.group(1)) or e["apelido_sugerido"]
     return re.sub(r"\{esp:(\d+)\}", trocar, texto)
 
 

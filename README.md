@@ -17,9 +17,11 @@ Cada vez avança 1 dia (um "período"). Pelo terminal também dá:
 http://localhost:8000. Pra desligar o site, feche a janela preta.
 Depois de avançar a simulação, é só recarregar a página (F5).
 
-## Como batizar uma espécie
+## Nomes das espécies
 
-1. No site, cada espécie mostra um número (ex: nº 12).
+A naturalista batiza sozinha cada espécie nova. Se quiser trocar algum nome:
+
+1. No site, cada espécie mostra um número (ex: Nº 0012, ou seja, 12).
 2. Abra o arquivo `site/nomes.json` no Bloco de Notas.
 3. Escreva assim (aspas duplas, vírgula entre as linhas, sem vírgula na última):
 
@@ -48,9 +50,11 @@ Depois de avançar a simulação, é só recarregar a página (F5).
 | `dados/estado.json` | O "save" do mundo (criado sozinho, não precisa mexer) |
 | `site/index.html` | A estrutura da página |
 | `site/estilo.css` | A aparência (diário de naturalista) |
-| `site/app.js` | Desenha o mundo animado, os retratos, a linha do tempo e a árvore |
+| `site/app.js` | Monta a página e roda o mundo ao vivo (bichos comendo, caçando, fugindo) |
+| `site/retratos.js` | O desenhista de bichos: 12 tipos de corpo, desenhados a partir dos genes |
+| `site/cenario.js` | O pintor de paisagens: chão, árvores, água, neve, borboletas e o clima dos eventos |
 | `site/diario.json` | Resumo que a simulação escreve pro site ler (criado sozinho) |
-| `site/nomes.json` | Os nomes que VOCÊ dá às espécies |
+| `site/nomes.json` | Nomes que VOCÊ quiser trocar (opcional) |
 | `.gitignore` | Lista de arquivos que o Git deve ignorar |
 
 ## Glossário rapidinho

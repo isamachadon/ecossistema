@@ -19,7 +19,6 @@ const TIPOS_HIST = {
   fim_evento:   { nome: "Fim de evento", cor: "#c98f1f" },
   migracao:     { nome: "Migração",    cor: "#4f87a3" },
 };
-const TINTA = "#17241c";
 
 let D = null;      // o diário
 let NOMES = {};    // os nomes que você deu
@@ -30,25 +29,6 @@ const $ = (sel) => document.querySelector(sel);
 
 function esc(t) {
   return String(t).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-}
-function hsl(h, s, l, a = 1) {
-  return `hsla(${h.toFixed(1)}, ${(s * 100).toFixed(1)}%, ${(l * 100).toFixed(1)}%, ${a})`;
-}
-// sorteio "previsível": a mesma semente sempre dá os mesmos números (o retrato não muda a cada recarga)
-function sorteador(semente) {
-  let a = semente >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-function hashGenes(g) {
-  const s = `${g.matiz}|${g.padrao}|${g.formato}|${g.densidade_padrao}|${g.enfeites.length}`;
-  let h = 2166136261;
-  for (const ch of s) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); }
-  return h;
 }
 function aviso(texto) {
   const div = document.createElement("div");
@@ -69,9 +49,9 @@ function nomeDado(id) {
 function rotulo(id) {
   const e = D.especies[id];
   if (!e) return "espécie desconhecida";
-  return nomeDado(id) || `sem nome (${cientifico(e)})`;
+  return nomeDado(id) || e.apelido_sugerido;
 }
-function rotuloCurto(id) { return nomeDado(id) || numero(id); }
+function rotuloCurto(id) { return rotulo(id); }
 function linkEsp(id) {
   return `<a href="#" class="link-esp" data-id="${id}">${esc(rotulo(id))}</a>`;
 }
@@ -124,293 +104,6 @@ function descricoes(g, quantas = 3) {
   const r = sorteador(hashGenes(g) ^ 99);  // embaralha de um jeito fixo pra cada genoma
   for (let i = d.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [d[i], d[j]] = [d[j], d[i]]; }
   return d.slice(0, quantas);
-}
-
-// ---------------------------------------------------------------- retrato
-
-function desenharRetrato(tela, g) {
-  const ctx = tela.getContext("2d");
-  const W = tela.width, H = tela.height;
-  ctx.clearRect(0, 0, W, H);
-  const rnd = sorteador(hashGenes(g));
-  const escala = 0.62 + 0.38 * Math.min(1, (g.tamanho - 0.4) / 3.0);  // os grandões enchem mais o quadro
-  const cx = W * 0.47, cy = H * 0.5;
-  const rx = W * 0.26 * escala * (0.8 + g.formato * 0.55);
-  const ry = H * 0.27 * escala * (1.1 - g.formato * 0.45);
-  const cor = hsl(g.matiz, g.saturacao, g.luz);
-  const corEscura = hsl(g.matiz, g.saturacao * 0.8, g.luz * 0.6);
-  const corPadrao = hsl(g.matiz_padrao, Math.min(1, g.saturacao + 0.1), g.luz < 0.5 ? g.luz + 0.22 : g.luz - 0.22);
-  const lw = Math.max(1.5, W / 140);
-  const chao = cy + ry + H * 0.1;
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-
-  // sombra no chão
-  ctx.fillStyle = "rgba(23, 36, 28, 0.14)";
-  ctx.beginPath(); ctx.ellipse(cx, chao, rx * 1.05, H * 0.035, 0, 0, Math.PI * 2); ctx.fill();
-
-  // cauda (atrás do corpo)
-  if (g.cauda > 0.08) {
-    const L = W * 0.06 + g.cauda * W * 0.26;
-    const ponta = [cx - rx - L, cy - ry * 0.5 - g.cauda * H * 0.12];
-    const caminho = () => {
-      ctx.beginPath();
-      ctx.moveTo(cx - rx * 0.8, cy + ry * 0.1);
-      ctx.quadraticCurveTo(cx - rx - L * 0.5, cy + ry * 0.4, ponta[0], ponta[1]);
-    };
-    caminho(); ctx.strokeStyle = TINTA; ctx.lineWidth = lw * (2 + g.cauda * 5); ctx.stroke();
-    caminho(); ctx.strokeStyle = cor; ctx.lineWidth = lw * (2 + g.cauda * 5) - lw * 2; ctx.stroke();
-    ctx.fillStyle = corPadrao; ctx.strokeStyle = TINTA; ctx.lineWidth = lw;
-    ctx.beginPath(); ctx.arc(ponta[0], ponta[1], lw * (1.5 + g.cauda * 2.5), 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-  }
-
-  // enfeites que ficam atrás do corpo (barbatana e asinha)
-  for (const e of g.enfeites) if (e.tipo === 3 || e.tipo === 6) desenharEnfeite(ctx, e, g, cx, cy, rx, ry, lw);
-
-  // patas
-  const patas = Math.round(g.patas);
-  if (patas === 0) {
-    ctx.fillStyle = corEscura; ctx.strokeStyle = TINTA; ctx.lineWidth = lw;
-    ctx.beginPath(); ctx.ellipse(cx, cy + ry * 0.85, rx * 1.05, ry * 0.3, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-  }
-  for (let i = 0; i < patas; i++) {
-    const fr = patas === 1 ? 0.5 : i / (patas - 1);
-    const x = cx - rx * 0.7 + fr * rx * 1.4;
-    const dobra = (i % 2 ? 1 : -1) * W * 0.012;
-    ctx.strokeStyle = TINTA; ctx.lineWidth = lw * 1.4;
-    ctx.beginPath();
-    ctx.moveTo(x, cy + ry * 0.5);
-    ctx.quadraticCurveTo(x + dobra * 2, cy + ry + H * 0.03, x + dobra, chao);
-    ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(x + dobra - W * 0.012, chao); ctx.lineTo(x + dobra + W * 0.014, chao); ctx.stroke();
-  }
-
-  // corpo
-  ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-  ctx.fillStyle = cor; ctx.fill();
-  ctx.save();
-  ctx.clip();
-  desenharPadrao(ctx, g, cx, cy, rx, ry, corPadrao, rnd);
-  ctx.fillStyle = "rgba(255, 255, 255, 0.16)";   // barriguinha clara
-  ctx.beginPath(); ctx.ellipse(cx + rx * 0.1, cy + ry * 0.65, rx * 0.7, ry * 0.4, 0, 0, Math.PI * 2); ctx.fill();
-  const luz = ctx.createRadialGradient(cx - rx * 0.35, cy - ry * 0.45, 1, cx, cy, rx * 1.25);
-  luz.addColorStop(0, "rgba(255, 255, 255, 0.35)");
-  luz.addColorStop(0.5, "rgba(255, 255, 255, 0)");
-  luz.addColorStop(1, "rgba(40, 25, 10, 0.28)");
-  ctx.fillStyle = luz; ctx.fillRect(cx - rx, cy - ry, rx * 2, ry * 2);
-  ctx.restore();
-  ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-  ctx.strokeStyle = TINTA; ctx.lineWidth = lw; ctx.stroke();
-
-  // espinhos nas costas
-  if (g.espinhos > 0.12) {
-    const n = 3 + Math.floor(g.espinhos * 9);
-    const comp = ry * (0.18 + g.espinhos * 0.45);
-    ctx.fillStyle = hsl(g.matiz, g.saturacao * 0.6, g.luz * 0.7);
-    for (let i = 0; i < n; i++) {
-      const a = Math.PI * (1.12 + (0.62 * (i + 0.5)) / n);
-      const bx = cx + rx * Math.cos(a), by = cy + ry * Math.sin(a);
-      let nx = Math.cos(a) / rx, ny = Math.sin(a) / ry;
-      const m = Math.hypot(nx, ny); nx /= m; ny /= m;
-      const base = W * 0.016;
-      ctx.beginPath();
-      ctx.moveTo(bx - ny * base, by + nx * base);
-      ctx.lineTo(bx + nx * comp, by + ny * comp);
-      ctx.lineTo(bx + ny * base, by - nx * base);
-      ctx.closePath(); ctx.fill(); ctx.stroke();
-    }
-  }
-
-  // os outros enfeites
-  for (const e of g.enfeites) if (e.tipo !== 3 && e.tipo !== 6) desenharEnfeite(ctx, e, g, cx, cy, rx, ry, lw);
-
-  // antenas
-  const antenas = Math.round(g.antenas);
-  for (let i = 0; i < antenas; i++) {
-    const a = -Math.PI * (0.22 + i * 0.07);
-    const bx = cx + rx * Math.cos(a), by = cy + ry * Math.sin(a);
-    const tx = bx + W * (0.05 + i * 0.025), ty = by - H * (0.16 + 0.03 * (i % 2));
-    ctx.strokeStyle = TINTA; ctx.lineWidth = lw;
-    ctx.beginPath(); ctx.moveTo(bx, by); ctx.quadraticCurveTo(bx - W * 0.02, ty + H * 0.05, tx, ty); ctx.stroke();
-    ctx.fillStyle = corPadrao;
-    ctx.beginPath(); ctx.arc(tx, ty, lw * 2.2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-  }
-
-  // olhos
-  const olhos = Math.round(g.olhos);
-  const rOlho = Math.max(W * 0.016, (W * 0.05) / Math.sqrt(olhos));
-  const ox = cx + rx * 0.5, oy = cy - ry * 0.25;
-  for (let i = 0; i < olhos; i++) {
-    let px = ox, py = oy;
-    if (olhos > 1) {
-      const ang = -1.1 + (2.2 * i) / (olhos - 1);
-      px = ox + Math.cos(ang) * ry * 0.18 - (i % 2) * rOlho * 0.9;
-      py = oy + Math.sin(ang) * ry * 0.42;
-    }
-    const r = rOlho * (0.85 + rnd() * 0.3);
-    ctx.fillStyle = "#fffdf6"; ctx.strokeStyle = TINTA; ctx.lineWidth = lw * 0.8;
-    ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = "#14100c";
-    ctx.beginPath(); ctx.arc(px + r * 0.35, py + r * 0.05, r * 0.5, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "#fff";
-    ctx.beginPath(); ctx.arc(px + r * 0.5, py - r * 0.15, r * 0.16, 0, Math.PI * 2); ctx.fill();
-  }
-
-  // boca: dentuça pros carnívoros, sorriso pros herbívoros
-  const bx = cx + rx * 0.8, by = cy + ry * 0.25;
-  ctx.strokeStyle = TINTA; ctx.lineWidth = lw;
-  if (g.dieta > 0.66) {
-    ctx.fillStyle = "#6b2a22";
-    ctx.beginPath();
-    ctx.moveTo(bx - W * 0.08, by);
-    ctx.quadraticCurveTo(bx - W * 0.035, by + H * 0.07, bx + W * 0.01, by - H * 0.01);
-    ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = "#fffdf6";
-    for (const dx of [-0.06, -0.025]) {
-      ctx.beginPath();
-      ctx.moveTo(bx + W * dx, by - H * 0.002);
-      ctx.lineTo(bx + W * (dx + 0.009), by + H * 0.035);
-      ctx.lineTo(bx + W * (dx + 0.018), by - H * 0.002);
-      ctx.closePath(); ctx.fill(); ctx.stroke();
-    }
-  } else if (g.dieta < 0.33) {
-    ctx.beginPath(); ctx.arc(bx - W * 0.03, by - H * 0.02, W * 0.03, 0.2 * Math.PI, 0.8 * Math.PI); ctx.stroke();
-  } else {
-    ctx.beginPath(); ctx.moveTo(bx - W * 0.06, by);
-    ctx.quadraticCurveTo(bx - W * 0.04, by + H * 0.02, bx - W * 0.02, by);
-    ctx.quadraticCurveTo(bx, by - H * 0.02, bx + W * 0.005, by); ctx.stroke();
-  }
-}
-
-function desenharPadrao(ctx, g, cx, cy, rx, ry, cor, rnd) {
-  const tipo = Math.floor(g.padrao), dens = g.densidade_padrao;
-  ctx.fillStyle = cor; ctx.strokeStyle = cor;
-  if (tipo === 1) {                                        // listras
-    const n = 3 + Math.round(dens * 7), larg = (rx * 2) / n;
-    for (let i = 0; i < n; i += 2) {
-      ctx.save(); ctx.translate(cx - rx + i * larg + larg / 2, cy); ctx.rotate(0.25);
-      ctx.fillRect(-larg * 0.35, -ry * 1.5, larg * 0.7, ry * 3); ctx.restore();
-    }
-  } else if (tipo === 2) {                                 // pintas
-    const n = 6 + Math.round(dens * 25);
-    for (let i = 0; i < n; i++) {
-      ctx.beginPath();
-      ctx.arc(cx + (rnd() * 2 - 1) * rx, cy + (rnd() * 2 - 1) * ry, rx * (0.04 + rnd() * 0.08), 0, Math.PI * 2);
-      ctx.fill();
-    }
-  } else if (tipo === 3) {                                 // anéis
-    const n = 2 + Math.round(dens * 4);
-    ctx.lineWidth = rx * 0.07;
-    for (let i = 0; i < n; i++) {
-      const f = (i + 1) / (n + 0.5);
-      ctx.beginPath(); ctx.ellipse(cx + rx * 0.15, cy, rx * f, ry * f, 0, 0, Math.PI * 2); ctx.stroke();
-    }
-  } else if (tipo === 4) {                                 // escamas
-    const s = rx * (0.24 - dens * 0.12);
-    ctx.lineWidth = Math.max(1, s * 0.16);
-    let linha = 0;
-    for (let y = cy - ry; y < cy + ry + s; y += s * 0.7, linha++) {
-      for (let x = cx - rx + (linha % 2 ? s / 2 : 0); x < cx + rx + s; x += s) {
-        ctx.beginPath(); ctx.arc(x, y, s / 2, 0, Math.PI); ctx.stroke();
-      }
-    }
-  } else if (tipo === 5) {                                 // manchas
-    const n = 2 + Math.round(dens * 4);
-    for (let i = 0; i < n; i++) {
-      ctx.beginPath();
-      ctx.ellipse(cx + (rnd() * 2 - 1) * rx * 0.8, cy + (rnd() * 2 - 1) * ry * 0.8,
-        rx * (0.15 + rnd() * 0.25), ry * (0.12 + rnd() * 0.2), rnd() * Math.PI, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-}
-
-function desenharEnfeite(ctx, e, g, cx, cy, rx, ry, lw) {
-  const a = Math.PI * (1.08 + e.pos * 0.8);   // posição ao longo das costas
-  const px = cx + rx * Math.cos(a), py = cy + ry * Math.sin(a);
-  const s = Math.min(rx, ry) * 0.35 * (0.5 + e.tam);
-  const cor = hsl(e.matiz, 0.6, 0.58);
-  ctx.fillStyle = cor; ctx.strokeStyle = TINTA; ctx.lineWidth = lw * 0.9;
-  switch (e.tipo) {
-    case 0: // crista
-      for (let k = -1; k <= 1; k++) {
-        ctx.beginPath(); ctx.arc(px + k * s * 0.55, py - s * 0.1, s * 0.4, Math.PI, 0); ctx.fill(); ctx.stroke();
-      }
-      break;
-    case 1: // babado
-      for (let k = 0; k < 5; k++) {
-        const ang = -Math.PI * (0.15 + k * 0.17);
-        ctx.beginPath();
-        ctx.ellipse(px + Math.cos(ang) * s * 0.6, py + Math.sin(ang) * s * 0.6, s * 0.45, s * 0.2, ang, 0, Math.PI * 2);
-        ctx.fill(); ctx.stroke();
-      }
-      break;
-    case 2: // chifre
-      ctx.fillStyle = "#efe3c4";
-      ctx.beginPath();
-      ctx.moveTo(px - s * 0.25, py + s * 0.1);
-      ctx.quadraticCurveTo(px + s * 0.05, py - s * 1.3, px + s * 0.6, py - s * 1.6);
-      ctx.quadraticCurveTo(px + s * 0.2, py - s * 0.8, px + s * 0.28, py + s * 0.1);
-      ctx.closePath(); ctx.fill(); ctx.stroke();
-      break;
-    case 3: // barbatana
-      ctx.globalAlpha = 0.9;
-      ctx.beginPath();
-      ctx.moveTo(px - s, py + s * 0.4); ctx.lineTo(px - s * 0.1, py - s * 1.7); ctx.lineTo(px + s, py + s * 0.4);
-      ctx.closePath(); ctx.fill(); ctx.stroke();
-      ctx.globalAlpha = 1;
-      break;
-    case 4: { // lanterna
-      const tx = px + s, ty = py - s * 1.9;
-      ctx.beginPath(); ctx.moveTo(px, py); ctx.quadraticCurveTo(px - s * 0.3, ty, tx, ty); ctx.stroke();
-      const brilho = ctx.createRadialGradient(tx, ty, 0, tx, ty, s * 0.9);
-      brilho.addColorStop(0, hsl(e.matiz, 0.95, 0.75, 0.9));
-      brilho.addColorStop(1, hsl(e.matiz, 0.95, 0.75, 0));
-      ctx.fillStyle = brilho; ctx.beginPath(); ctx.arc(tx, ty, s * 0.9, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = hsl(e.matiz, 0.9, 0.7);
-      ctx.beginPath(); ctx.arc(tx, ty, s * 0.3, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-      break;
-    }
-    case 5: { // bigode
-      const bx = cx + rx * 0.88, by = cy + ry * 0.12;
-      for (let k = -1; k <= 1; k++) {
-        ctx.beginPath(); ctx.moveTo(bx, by); ctx.quadraticCurveTo(bx + s, by + k * s * 0.2, bx + s * 1.7, by + k * s * 0.6); ctx.stroke();
-      }
-      break;
-    }
-    case 6: // asinha
-      ctx.fillStyle = hsl(e.matiz, 0.6, 0.85, 0.7);
-      ctx.beginPath(); ctx.ellipse(px, py - s * 0.7, s * 1.4, s * 0.6, -0.6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(px - s * 0.6, py); ctx.lineTo(px + s * 0.6, py - s * 1.3); ctx.stroke();
-      break;
-    case 7: // casco
-      ctx.globalAlpha = 0.92;
-      ctx.beginPath(); ctx.ellipse(cx - rx * 0.05, cy - ry * 0.05, rx * 0.82, ry * 0.95, 0, Math.PI, 2 * Math.PI);
-      ctx.closePath(); ctx.fill(); ctx.stroke();
-      ctx.globalAlpha = 1;
-      for (let k = 1; k <= 3; k++) {
-        const x = cx - rx * 0.05 - rx * 0.82 + (rx * 1.64 * k) / 4;
-        ctx.beginPath(); ctx.moveTo(x, cy - ry * 0.05); ctx.lineTo(x + (k - 2) * rx * 0.08, cy - ry * 0.8); ctx.stroke();
-      }
-      break;
-    case 8: // topete
-      for (let k = -1; k <= 1; k++) {
-        ctx.beginPath(); ctx.moveTo(px + k * s * 0.3, py);
-        ctx.bezierCurveTo(px + k * s * 0.8, py - s * 1.2, px + k * s * 0.1 + s * 0.5, py - s * 1.5, px + k * s * 0.2 + s * 0.3, py - s * 0.9);
-        ctx.stroke();
-      }
-      break;
-    case 9: { // brilho
-      const r = sorteador(Math.floor(e.pos * 1e6));
-      for (let k = 0; k < 5; k++) {
-        const x = cx + (r() * 2 - 1) * rx * 0.7, y = cy + (r() * 2 - 1) * ry * 0.6;
-        const gr = ctx.createRadialGradient(x, y, 0, x, y, s * 0.5);
-        gr.addColorStop(0, hsl(e.matiz, 1, 0.85, 0.95)); gr.addColorStop(1, hsl(e.matiz, 1, 0.85, 0));
-        ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, s * 0.5, 0, Math.PI * 2); ctx.fill();
-      }
-      break;
-    }
-  }
 }
 
 // ---------------------------------------------------------------- cabeçalho
@@ -494,86 +187,7 @@ function montarMundo() {
     comida.push({ x: (p[1] + rnd()) * CEL, y: (p[2] + rnd()) * CEL, t: agora });
   }
 
-  // --- o cenário: cores suaves dos biomas + desenhos nítidos (árvores, capim, juncos...)
-  const mapaCores = document.createElement("canvas");
-  mapaCores.width = COLS; mapaCores.height = LINHAS;
-  const mc = mapaCores.getContext("2d");
-  D.biomas.forEach((linha, cy) => linha.forEach((b, cx) => { mc.fillStyle = BIOMAS[b].cor; mc.fillRect(cx, cy, 1, 1); }));
-  const fundo = document.createElement("canvas");
-  fundo.width = LW * 4; fundo.height = LH * 4;
-  const fc = fundo.getContext("2d");
-  fc.imageSmoothingEnabled = true; fc.imageSmoothingQuality = "high";
-  fc.drawImage(mapaCores, -0.5 * (fundo.width / COLS), -0.5 * (fundo.height / LINHAS),
-    fundo.width * (COLS + 1) / COLS, fundo.height * (LINHAS + 1) / LINHAS);
-  const rf = sorteador(99);
-  for (let k = 0; k < 2500; k++) {   // textura de terra
-    fc.fillStyle = `rgba(23, 36, 28, ${0.02 + rf() * 0.04})`;
-    fc.beginPath(); fc.arc(rf() * fundo.width, rf() * fundo.height, 1 + rf() * 3, 0, Math.PI * 2); fc.fill();
-  }
-
-  const decor = [];
-  const QTD = { floresta: 5, campo: 3, pantano: 3, deserto: 2, tundra: 3 };
-  D.biomas.forEach((linha, cy) => linha.forEach((b, cx) => {
-    for (let i = 0; i < QTD[b]; i++) decor.push({ b, x: (cx + rf()) * CEL, y: (cy + rf()) * CEL, s: 0.7 + rf() * 0.6, v: rf() });
-  }));
-  decor.sort((a, b) => a.y - b.y);
-
-  function desenharDecor(d, px) {
-    const s = d.s;
-    ctx.lineWidth = px * 1.1;
-    ctx.strokeStyle = "rgba(23, 36, 28, 0.55)";
-    if (d.b === "floresta") {
-      ctx.fillStyle = "#7a5a3a";
-      ctx.fillRect(d.x - 0.6 * s, d.y - 3 * s, 1.2 * s, 3 * s);
-      ctx.fillStyle = d.v < 0.5 ? "#4f8a52" : "#679c5d";
-      for (const [ox, oy, r] of [[-1.6, -4.2, 2.4], [1.6, -4.2, 2.4], [0, -5.8, 2.8]]) {
-        ctx.beginPath(); ctx.arc(d.x + ox * s, d.y + oy * s, r * s, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-      }
-    } else if (d.b === "campo") {
-      ctx.strokeStyle = "#7f9a4c"; ctx.lineWidth = px * 1.4;
-      for (const k of [-1, 0, 1]) {
-        ctx.beginPath(); ctx.moveTo(d.x + k * 0.6 * s, d.y); ctx.lineTo(d.x + k * 1.4 * s, d.y - 2.4 * s); ctx.stroke();
-      }
-      if (d.v > 0.8) {
-        ctx.fillStyle = d.v > 0.9 ? "#e8a33d" : "#d9667b";
-        ctx.beginPath(); ctx.arc(d.x + 1.6 * s, d.y - 1.2 * s, 0.7 * s, 0, Math.PI * 2); ctx.fill();
-      }
-    } else if (d.b === "pantano") {
-      if (d.v < 0.45) {
-        ctx.strokeStyle = "rgba(60, 120, 130, 0.45)";
-        ctx.beginPath(); ctx.ellipse(d.x, d.y, 3 * s, 1 * s, 0, 0, Math.PI * 2); ctx.stroke();
-      } else {
-        ctx.strokeStyle = "#5f8a5a"; ctx.lineWidth = px * 1.3;
-        for (const k of [-1, 0.2, 1.1]) {
-          ctx.beginPath(); ctx.moveTo(d.x + k * s, d.y); ctx.lineTo(d.x + k * 1.2 * s, d.y - 4 * s); ctx.stroke();
-        }
-        ctx.fillStyle = "#7a5233";
-        ctx.beginPath(); ctx.ellipse(d.x + 0.25 * s, d.y - 3.6 * s, 0.45 * s, 1 * s, 0, 0, Math.PI * 2); ctx.fill();
-      }
-    } else if (d.b === "deserto") {
-      if (d.v > 0.75) {
-        ctx.fillStyle = "#6f9a58";
-        ctx.beginPath(); ctx.roundRect(d.x - 0.8 * s, d.y - 4.5 * s, 1.6 * s, 4.5 * s, 0.8 * s); ctx.fill(); ctx.stroke();
-        ctx.beginPath(); ctx.roundRect(d.x + 0.8 * s, d.y - 3.2 * s, 1.4 * s, 1 * s, 0.5 * s); ctx.fill(); ctx.stroke();
-      } else {
-        ctx.strokeStyle = "rgba(170, 120, 50, 0.45)"; ctx.lineWidth = px * 1.4;
-        ctx.beginPath(); ctx.arc(d.x, d.y + 2 * s, 3.4 * s, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke();
-      }
-    } else if (d.b === "tundra") {
-      if (d.v < 0.45) {
-        ctx.fillStyle = "#b9c0c4";
-        ctx.beginPath(); ctx.ellipse(d.x, d.y - 0.8 * s, 2 * s, 1.2 * s, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-      } else {
-        ctx.strokeStyle = "rgba(90, 130, 160, 0.55)";
-        for (let k = 0; k < 3; k++) {
-          const a = (k * Math.PI) / 3;
-          ctx.beginPath();
-          ctx.moveTo(d.x - Math.cos(a) * 1.2 * s, d.y - Math.sin(a) * 1.2 * s);
-          ctx.lineTo(d.x + Math.cos(a) * 1.2 * s, d.y + Math.sin(a) * 1.2 * s); ctx.stroke();
-        }
-      }
-    }
-  }
+  const cen = criarCenario(D);   // o cenário vem do cenario.js
 
   // --- câmera
   const cam = { x: LW / 2, y: LH / 2, zoom: 1, zoomAlvo: 1 };
@@ -596,7 +210,7 @@ function montarMundo() {
   medir();
   const paraMundo = (sx, sy) => [(sx - W / 2) / escala() + cam.x, (sy - H / 2) / escala() + cam.y];
   const paraTela = (x, y) => [(x - cam.x) * escala() + W / 2, (y - cam.y) * escala() + H / 2];
-  const tamFigura = (b) => 8 + b.tam * 4.5;   // largura da figurinha, em unidades do mundo
+  const tamFigura = (b) => 12 + b.tam * 5.5;   // largura da figurinha, em unidades do mundo
 
   function zoomEm(fator, sx = W / 2, sy = H / 2) {
     const [mx, my] = paraMundo(sx, sy);
@@ -631,8 +245,8 @@ function montarMundo() {
     caixa.innerHTML = "";
     caixa.style.background = tom(e.retrato);
     caixa.appendChild(t);
-    $("#p-etq").textContent = `${numero(b.esp)} · ${e.dieta}`;
-    $("#p-nome").textContent = nomeDado(b.esp) || "Sem nome";
+    $("#p-etq").textContent = `${numero(b.esp)} · ${e.dieta} · ${NOMES_PLANOS[e.retrato.plano ?? 0]}`;
+    $("#p-nome").textContent = rotulo(b.esp);
     $("#p-cient").textContent = cientifico(e);
     $("#p-estado").textContent = b.estado;
   }
@@ -817,14 +431,12 @@ function montarMundo() {
     ctx.fillStyle = "#e2e3c4"; ctx.fillRect(0, 0, W, H);
     ctx.setTransform(dpr * s, 0, 0, dpr * s, dpr * (W / 2 - cam.x * s), dpr * (H / 2 - cam.y * s));
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(fundo, 0, 0, LW, LH);
+    ctx.drawImage(cen.fundo, 0, 0, LW, LH);
 
     const [x0, y0] = paraMundo(-20, -20), [x1, y1] = paraMundo(W + 20, H + 40);
     const dentro = (x, y, m = 0) => x > x0 - m && x < x1 + m && y > y0 - m && y < y1 + m;
 
-    ctx.globalAlpha = 0.75;   // cenário mais discreto, pros bichos aparecerem
-    for (const d of decor) if (dentro(d.x, d.y, 8)) desenharDecor(d, px);
-    ctx.globalAlpha = 1;
+    cen.desenharChaoAnimado(ctx, agora, px);
 
     // brotinhos de comida
     for (const c of comida) {
@@ -840,7 +452,12 @@ function montarMundo() {
 
     // bichos, de trás pra frente (quem está mais embaixo fica na frente)
     const visiveis = bichos.filter((b) => dentro(b.x, b.y, 10)).sort((a, b) => a.y - b.y);
+    // árvores, cactos e companhia entram na mesma fila, pra quem está atrás ficar escondido
+    const altosVis = cen.altos.filter((o) => dentro(o.x, o.y - 8, 24));
+    let ia = 0;
+    const altosAte = (yLim) => { while (ia < altosVis.length && altosVis[ia].y <= yLim) cen.desenharAlto(ctx, altosVis[ia++], agora, px); };
     for (const b of visiveis) {
+      altosAte(b.y);
       const x = b.px + (b.x - b.px) * alfa, y = b.py + (b.y - b.py) * alfa;
       const larg = tamFigura(b), alt = (larg * 132) / 180;
       if (b === seguindo) {
@@ -867,9 +484,12 @@ function montarMundo() {
       ctx.drawImage(sprite(b.esp), -larg / 2, -alt * 0.84, larg, alt);
       ctx.restore();
     }
+    altosAte(Infinity);
+    cen.desenharParticulas(ctx, agora, px, dentro);
 
     // daqui pra baixo, coisas desenhadas em pixels da tela
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    cen.desenharClima(ctx, W, H, agora);
     for (let i = baloes.length - 1; i >= 0; i--) {
       const bl = baloes[i], idade = (agora - bl.t) / 1100;
       if (idade >= 1) { baloes.splice(i, 1); continue; }
@@ -889,7 +509,7 @@ function montarMundo() {
     tela.classList.toggle("sobre-bicho", !!sob);
     if (sob && sob !== seguindo) {
       const [tx, ty] = paraTela(sob.x, sob.y);
-      const texto = nomeDado(sob.esp) || `Sem nome · ${numero(sob.esp)}`;
+      const texto = rotulo(sob.esp);
       ctx.font = "500 13px 'Instrument Sans', system-ui, sans-serif";
       const w = ctx.measureText(texto).width + 20;
       let lx = tx - w / 2, ly = ty - tamFigura(sob) * escala() * 0.75 - 34;
@@ -911,6 +531,7 @@ function montarMundo() {
       if (!pausado) {
         acumulado += dt * velocidade;
         while (acumulado >= TIQUE) { passo(agora); acumulado -= TIQUE; }
+        cen.atualizar(dt * velocidade, agora);
       }
       if (cam.zoom !== cam.zoomAlvo) {
         cam.zoom += (cam.zoomAlvo - cam.zoom) * 0.12;
@@ -949,17 +570,14 @@ function grafico(id, cor) {
 function cartao(e) {
   const div = document.createElement("article");
   div.className = "cartao";
-  const nome = nomeDado(e.id);
   const g = e.retrato;
   div.innerHTML = `
     <div class="retrato" style="--tom:${tom(g)}">
-      <span class="etiqueta">${numero(e.id)} · ${e.dieta}</span>
-      ${nome ? "" : `<span class="selo">Batize-me</span>`}
+      <span class="etiqueta">${numero(e.id)} · ${e.dieta} · ${NOMES_PLANOS[g.plano ?? 0]}</span>
     </div>
     <div class="corpo">
-      <h3 class="${nome ? "" : "sem-nome"}">${nome ? esc(nome) : "Sem nome"}</h3>
+      <h3>${esc(rotulo(e.id))}</h3>
       <p class="cientifico">${esc(cientifico(e))}</p>
-      ${nome ? "" : `<p class="sugestao">Sugestão: <b>${esc(e.apelido_sugerido)}</b></p>`}
       <div class="numeros">
         <div><b>${e.pop}</b><span>População</span></div>
         <div><b>${e.pico}</b><span>Recorde</span></div>
@@ -981,10 +599,7 @@ function montarEspecies() {
   const vivas = Object.values(D.especies).filter((e) => e.extincao === null).sort((a, b) => b.pop - a.pop);
   const lista = $("#lista-especies");
   lista.innerHTML = "";
-  const semNome = vivas.filter((e) => !nomeDado(e.id)).length;
-  $("#nota-especies").textContent = semNome === 0 ? "Todo mundo batizado. Que organização!"
-    : semNome === 1 ? "Uma espécie está esperando batismo. Clique num cartão pra ver a ficha completa."
-    : `${semNome} espécies estão esperando batismo. Clique num cartão pra ver a ficha completa.`;
+  $("#nota-especies").textContent = "Todas batizadas pela naturalista, do jeito dela. Clique num cartão pra ver a ficha completa.";
   if (!vivas.length) lista.innerHTML = `<p class="desc">Ninguém vivo no momento. Um silêncio constrangedor.</p>`;
   for (const e of vivas) lista.appendChild(cartao(e));
 }
@@ -1084,7 +699,6 @@ const ROTULOS_GENES = [
 function abrirFicha(id) {
   const e = D.especies[id];
   if (!e) return;
-  const nome = nomeDado(id);
   const g = e.retrato;
   const descendentes = Object.values(D.especies).filter((x) => x.pai === e.id);
   const genes = ROTULOS_GENES.map(([k, rot, min, max]) => {
@@ -1096,10 +710,9 @@ function abrirFicha(id) {
     <div class="ficha-topo">
       <div class="retrato" style="--tom:${tom(g)}"></div>
       <div class="ficha-info">
-        <p class="etiqueta">${numero(e.id)} · ${e.dieta}</p>
-        <h3>${nome ? esc(nome) : "Sem nome"}</h3>
+        <p class="etiqueta">${numero(e.id)} · ${e.dieta} · ${NOMES_PLANOS[g.plano ?? 0]}</p>
+        <h3>${esc(rotulo(id))}</h3>
         <p class="cientifico">${esc(cientifico(e))}</p>
-        ${nome ? "" : `<p class="sugestao">Sugestão: <b>${esc(e.apelido_sugerido)}</b></p>`}
         <dl class="dados">
           <dt>Situação</dt><dd>${e.extincao === null ? `Viva, ${e.pop} indivíduos` : `Extinta no dia ${e.extincao}`}</dd>
           <dt>Surgiu</dt><dd>Dia ${e.nascimento}</dd>

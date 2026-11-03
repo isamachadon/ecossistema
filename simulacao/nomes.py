@@ -1,11 +1,10 @@
 """
 nomes.py: a fábrica de nomes.
 
-Gera nomes científicos de mentirinha (em latim macarrônico), apelidos
-sugeridos em português e o nome do planeta. As peças se combinam de
-milhões de jeitos, então os nomes praticamente nunca se repetem.
-O apelido aqui é só SUGESTÃO: o nome oficial quem dá é você, no
-arquivo site/nomes.json.
+Gera nomes científicos de mentirinha (em latim macarrônico), o nome popular
+em português (a naturalista batiza sozinha cada espécie nova) e o nome do
+planeta. As peças se combinam de milhões de jeitos. Se quiser trocar algum
+nome, é só escrever no arquivo site/nomes.json.
 """
 
 INICIO = ["Bro", "Cal", "Dra", "Fu", "Gli", "Ka", "Lu", "Mor", "Nim", "Pla", "Quo", "Ru", "Sel",
@@ -41,9 +40,30 @@ def _cor_latim(g):
     return "ruber"
 
 
+EPITETO_PLANO = {1: "vermiformis", 2: "gelatinosus", 3: "araneoides", 4: "cochleatus", 5: "avipes",
+                 6: "fungiformis", 7: "stellatus", 8: "crystallinus", 9: "volans", 10: "lacertinus",
+                 11: "piscipes"}
+SUBST_PLANO = {
+    1: [("Minhocão", "m"), ("Lagarta", "f"), ("Trenzinho", "m"), ("Centopeia", "f")],
+    2: [("Gelatina", "f"), ("Gosma", "f"), ("Pudinzinho", "m"), ("Meleca", "f")],
+    3: [("Aranhiço", "m"), ("Pernuda", "f"), ("Tricoteira", "f"), ("Perna-Longa", "m")],
+    4: [("Caracol", "m"), ("Lesma de Casca", "f"), ("Concha Ambulante", "f"), ("Caramujo", "m")],
+    5: [("Pernalta", "f"), ("Galinhola", "f"), ("Bicudo", "m"), ("Pescoçudo", "m")],
+    6: [("Cogumelo", "m"), ("Chapeuzinho", "m"), ("Shimeji", "m"), ("Champignon", "m")],
+    7: [("Estrelinha", "f"), ("Cinco-Pontas", "m"), ("Asterisco", "m"), ("Estrela", "f")],
+    8: [("Cristal", "m"), ("Pedrisco", "m"), ("Diamantinho", "m"), ("Quartzo", "m")],
+    9: [("Balãozinho", "m"), ("Bexiga", "f"), ("Flutuador", "m"), ("Dirigível", "m")],
+    10: [("Lagartão", "m"), ("Calango", "m"), ("Teiú", "m"), ("Lagartixa", "f")],
+    11: [("Peixe-Pé", "m"), ("Sardinha Andante", "f"), ("Bagre Terrestre", "m"), ("Lambari", "m")],
+}
+
+
 def epiteto(g, rng):
     """A segunda parte do nome científico, inspirada na característica mais marcante."""
     op = [_cor_latim(g)]
+    plano = int(g.get("plano", 0))
+    if plano in EPITETO_PLANO:
+        op += [EPITETO_PLANO[plano]] * 2
     if g["tamanho"] > 2.3:
         op += ["gigas", "maximus", "colossalis"]
     if g["tamanho"] < 0.8:
@@ -116,8 +136,22 @@ COMPLEMENTOS = ["de Bigode", "de Pijama", "das Dunas", "do Brejo", "de Fim de Se
                 "de Novela", "Gourmet", "Raiz", "Nutella"]
 
 
+def apelido_unico(g, rng, usados):
+    """Um nome popular que ainda não existe no planeta."""
+    usados = {u.lower() for u in usados}
+    for _ in range(25):
+        nome = apelido(g, rng)
+        if nome.lower() not in usados:
+            return nome
+    base = apelido(g, rng)
+    for numero in ["II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"]:
+        if f"{base} {numero}".lower() not in usados:
+            return f"{base} {numero}"
+    return f"{base} {len(usados)}"
+
+
 def apelido(g, rng):
-    """Sugestão de nome popular, com base na aparência e no jeitão da espécie."""
+    """Nome popular, com base na aparência e no jeitão da espécie."""
     tracos = []
     if g["tamanho"] > 2.3:
         tracos.append("grande")
@@ -136,7 +170,10 @@ def apelido(g, rng):
         tracos.append("patas")
     tracos = [t for t in tracos if t]
 
-    if tracos and rng.random() < 0.5:
+    plano = int(g.get("plano", 0))
+    if plano in SUBST_PLANO and rng.random() < 0.6:
+        subst, gen = rng.choice(SUBST_PLANO[plano])
+    elif tracos and rng.random() < 0.5:
         subst, gen = rng.choice(SUBST_TRACO[rng.choice(tracos)])
     else:
         subst, gen = rng.choice(SUBST)
