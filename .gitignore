@@ -1,0 +1,5 @@
+# Arquivos temporários que o Python cria sozinho
+__pycache__/
+*.pyc
+# Arquivo temporário usado durante o salvamento
+*.tmp
