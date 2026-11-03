@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Diário do Ecossistema</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+  <header class="capa">
+    <p class="sobretitulo">Diário de campo de uma naturalista dedicada</p>
+    <h1 id="planeta">Abrindo o caderno...</h1>
+    <p class="subtitulo" id="resumo"></p>
+    <p class="carimbo" id="atualizado"></p>
+  </header>
+
+  <nav class="abas">
+    <a href="#mundo">O mundo</a>
+    <a href="#especies">Espécies</a>
+    <a href="#linha-do-tempo">Linha do tempo</a>
+    <a href="#arvore">Árvore genealógica</a>
+    <a href="#batizar">Como batizar</a>
+  </nav>
+
+  <div id="avisos"></div>
+
+  <main>
+    <section id="mundo">
+      <h2>O mundo agora</h2>
+      <p class="nota">Os últimos instantes do dia, repetindo em loop. Passe o mouse num bicho pra saber quem é.</p>
+      <div class="moldura"><canvas id="tela" width="800" height="500"></canvas></div>
+      <div class="legenda" id="legenda"></div>
+      <p class="balanco" id="balanco"></p>
+      <div id="eventos-ativos"></div>
+    </section>
+
+    <section id="especies">
+      <h2>Espécies vivas</h2>
+      <p class="nota" id="nota-especies"></p>
+      <div class="grade-especies" id="lista-especies"></div>
+    </section>
+
+    <section id="linha-do-tempo">
+      <h2>Linha do tempo</h2>
+      <div class="filtros" id="filtros">
+        <button data-f="tudo" class="ativo">Tudo</button>
+        <button data-f="especie_nova">Espécies novas</button>
+        <button data-f="extincao">Extinções</button>
+        <button data-f="evento">Eventos</button>
+      </div>
+      <ol id="historia"></ol>
+      <button class="botao" id="mais-historia" hidden>Folhear mais páginas</button>
+    </section>
+
+    <section id="arvore">
+      <h2>Árvore genealógica</h2>
+      <p class="nota">Cada linha é uma espécie, do dia em que surgiu até hoje (ou até sumir).
+        Os galhos mostram quem descende de quem. Cinza com † = extinta. Clique num nome pra ver a ficha.</p>
+      <div class="arvore-rolagem"><svg id="arvore-svg"></svg></div>
+    </section>
+
+    <section id="batizar">
+      <h2>Como batizar uma espécie</h2>
+      <ol class="passos">
+        <li>Escolha uma espécie sem nome e anote o número dela (ex: <strong>nº 12</strong>).</li>
+        <li>Abra o arquivo <code>site/nomes.json</code> no Bloco de Notas.</li>
+        <li>Escreva o número e o nome entre aspas, separando as linhas com vírgula:
+<pre>{
+  "3": "Lesmão Guloso",
+  "12": "Dona Pantufa"
+}</pre></li>
+        <li>Salve e recarregue esta página (F5). Pronto, nome oficial!</li>
+      </ol>
+      <p class="nota">Dica: a última linha não leva vírgula. Se algo der errado, este diário avisa lá no topo.</p>
+    </section>
+  </main>
+
+  <footer>Diário mantido por isa e suas criaturas. Nenhum bicho real foi ferido (eles nem existem).</footer>
+
+  <dialog id="ficha">
+    <button class="fechar" aria-label="Fechar">×</button>
+    <div id="ficha-conteudo"></div>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>

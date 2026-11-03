@@ -139,6 +139,8 @@ def main():
     parser.add_argument("--novo", action="store_true", help="apaga o mundo e cria um planeta novo")
     parser.add_argument("--semente", type=int, help="número que define o planeta novo (opcional)")
     args = parser.parse_args()
+    if args.dias < 1:
+        parser.error("o número de dias precisa ser 1 ou mais")
 
     if args.novo or not os.path.exists(ARQ_ESTADO):
         semente = args.semente if args.semente is not None else random.randrange(1_000_000_000)

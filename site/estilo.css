@@ -1,0 +1,210 @@
+/* estilo.css: a "roupa" do site. Papel envelhecido, tinta sépia e letra de caderno. */
+
+:root {
+  --papel: #f6efdf;
+  --papel-escuro: #ebdfc4;
+  --cartao: #fffaf0;
+  --tinta: #3a2e24;
+  --tinta-suave: #6b5a48;
+  --sepia: #9a7b56;
+  --verde: #5d7a45;
+  --vermelho: #a14a3b;
+  --linha: rgba(90, 70, 50, 0.2);
+  --sombra: 0 8px 24px rgba(80, 60, 30, 0.1);
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  color: var(--tinta);
+  background-color: var(--papel);
+  background-image:
+    radial-gradient(circle at 20% 10%, rgba(255, 255, 255, 0.5), transparent 40%),
+    radial-gradient(circle at 80% 70%, rgba(200, 170, 120, 0.12), transparent 50%);
+  background-attachment: fixed;
+  font-family: "EB Garamond", Georgia, serif;
+  font-size: 18px;
+  line-height: 1.5;
+}
+
+a { color: var(--verde); }
+code { background: var(--papel-escuro); padding: 1px 6px; border-radius: 3px; font-size: 0.9em; }
+
+/* ---------- capa ---------- */
+.capa {
+  text-align: center;
+  padding: 48px 16px 24px;
+}
+.sobretitulo { font-family: "Caveat", cursive; font-size: 1.5rem; color: var(--sepia); margin: 0; }
+h1 { font-size: clamp(2.3rem, 7vw, 4rem); margin: 0; font-weight: 600; letter-spacing: 0.5px; }
+.subtitulo { font-size: 1.15rem; margin: 6px 0; color: var(--tinta-suave); }
+.carimbo { font-family: "Caveat", cursive; color: var(--sepia); font-size: 1.1rem; margin: 0; }
+
+nav.abas {
+  position: sticky; top: 0; z-index: 5;
+  display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;
+  padding: 8px 16px;
+  background: rgba(246, 239, 223, 0.92);
+  backdrop-filter: blur(4px);
+  border-top: 1px dashed var(--linha);
+  border-bottom: 1px dashed var(--linha);
+}
+nav.abas a {
+  color: var(--tinta); text-decoration: none;
+  padding: 3px 14px; border-radius: 999px; border: 1px solid var(--linha);
+  font-size: 0.95rem; background: var(--cartao);
+}
+nav.abas a:hover { background: var(--papel-escuro); }
+
+main { max-width: 1120px; margin: 0 auto; padding: 0 16px 60px; }
+section { padding-top: 44px; scroll-margin-top: 50px; }
+h2 { font-family: "Caveat", cursive; font-size: 2.6rem; color: var(--verde); margin: 0; line-height: 1.1; }
+.nota { color: var(--tinta-suave); font-style: italic; margin: 4px 0 16px; }
+
+#avisos .aviso {
+  max-width: 1088px; margin: 16px auto 0; padding: 10px 16px;
+  background: #fbe3d9; border: 1px solid var(--vermelho); color: var(--vermelho);
+  border-radius: 4px;
+}
+
+/* ---------- o mundo ---------- */
+.moldura {
+  background: var(--cartao);
+  padding: 10px;
+  border: 1px solid var(--linha);
+  box-shadow: 0 2px 0 var(--papel-escuro), var(--sombra);
+  transform: rotate(-0.3deg);
+}
+#tela { width: 100%; height: auto; display: block; cursor: crosshair; border-radius: 2px; }
+
+.legenda { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 14px 0 4px; font-size: 0.95rem; color: var(--tinta-suave); }
+.legenda span { display: inline-flex; align-items: center; gap: 6px; }
+.legenda i { width: 14px; height: 14px; border-radius: 50%; display: inline-block; border: 1px solid var(--linha); }
+.balanco { font-family: "Caveat", cursive; font-size: 1.35rem; color: var(--sepia); margin: 6px 0; }
+
+.evento-ativo {
+  border: 2px solid var(--vermelho); color: var(--tinta);
+  background: rgba(161, 74, 59, 0.06);
+  padding: 10px 14px; margin: 10px 0; border-radius: 4px;
+  transform: rotate(0.4deg);
+}
+.evento-ativo strong { color: var(--vermelho); font-family: "Caveat", cursive; font-size: 1.4rem; display: block; line-height: 1.1; }
+.evento-ativo small { color: var(--tinta-suave); }
+
+/* ---------- espécies ---------- */
+.grade-especies {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 26px;
+}
+.cartao {
+  background: var(--cartao);
+  border: 1px solid var(--linha);
+  padding: 16px 16px 12px;
+  box-shadow: var(--sombra);
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+.cartao:nth-child(3n+1) { transform: rotate(-0.6deg); }
+.cartao:nth-child(3n+2) { transform: rotate(0.4deg); }
+.cartao:hover { transform: rotate(0) translateY(-3px); }
+
+.retrato {
+  position: relative;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 23px, rgba(90, 70, 50, 0.07) 23px 24px),
+    #fdf7ea;
+  border: 1px solid var(--linha);
+}
+.retrato::before {
+  content: ""; position: absolute; top: -10px; left: 50%;
+  width: 76px; height: 20px; transform: translateX(-50%) rotate(-3deg);
+  background: rgba(214, 196, 150, 0.65);
+}
+.retrato canvas { width: 100%; height: auto; display: block; }
+
+.cartao h3 { margin: 10px 0 0; font-size: 1.4rem; line-height: 1.15; }
+.numero { font-family: "Caveat", cursive; color: var(--sepia); font-size: 1.15rem; float: right; }
+.selo {
+  display: inline-block; margin-left: 4px; padding: 0 6px;
+  font-family: "Caveat", cursive; font-size: 1.1rem; color: var(--vermelho);
+  border: 1.5px solid var(--vermelho); border-radius: 4px; transform: rotate(-4deg);
+}
+.cientifico { font-style: italic; color: var(--tinta-suave); margin: 0; }
+.sugestao { font-size: 0.92rem; color: var(--tinta-suave); margin: 4px 0 0; }
+
+dl.dados { display: grid; grid-template-columns: auto 1fr; gap: 0 12px; font-size: 0.95rem; margin: 10px 0 6px; }
+dl.dados dt { color: var(--tinta-suave); }
+dl.dados dd { margin: 0; }
+.notas { font-family: "Caveat", cursive; font-size: 1.25rem; color: var(--sepia); padding-left: 18px; margin: 6px 0; line-height: 1.15; }
+.notas li { margin-bottom: 3px; }
+.grafico { width: 100%; height: 34px; display: block; margin-top: 6px; }
+
+/* ---------- linha do tempo ---------- */
+.filtros { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 18px; }
+.filtros button, .botao {
+  font: inherit; font-size: 0.95rem; color: var(--tinta); cursor: pointer;
+  background: var(--cartao); border: 1px solid var(--linha); border-radius: 999px; padding: 3px 14px;
+}
+.filtros button.ativo { background: var(--verde); color: #fff; border-color: var(--verde); }
+.botao { margin: 16px 0 0 96px; }
+
+#historia { list-style: none; margin: 0 0 0 90px; padding: 0; border-left: 2px solid var(--linha); }
+#historia li { position: relative; padding: 7px 0 7px 26px; }
+#historia .dia {
+  position: absolute; left: -96px; width: 82px; text-align: right;
+  font-family: "Caveat", cursive; font-size: 1.2rem; color: var(--sepia); line-height: 1.5;
+}
+#historia .icone { position: absolute; left: -13px; top: 6px; background: var(--papel); font-size: 1rem; }
+#historia .h-extincao .texto { color: var(--tinta-suave); }
+#historia .h-especie_nova .texto { font-weight: 600; }
+
+/* ---------- árvore ---------- */
+.arvore-rolagem {
+  overflow: auto; max-height: 75vh;
+  background: var(--cartao); border: 1px solid var(--linha); box-shadow: var(--sombra);
+}
+#arvore-svg { display: block; }
+#arvore-svg text { font-family: "EB Garamond", Georgia, serif; font-size: 14px; fill: var(--tinta); }
+#arvore-svg .rotulo { cursor: pointer; }
+#arvore-svg .rotulo:hover { text-decoration: underline; }
+#arvore-svg .extinta { fill: var(--tinta-suave); font-style: italic; }
+#arvore-svg .eixo { font-family: "Caveat", cursive; font-size: 15px; fill: var(--sepia); }
+
+/* ---------- como batizar ---------- */
+.passos li { margin-bottom: 8px; }
+pre {
+  background: var(--cartao); border: 1px dashed var(--linha); padding: 10px 14px;
+  font-size: 0.95rem; overflow-x: auto;
+}
+
+/* ---------- ficha (janela) ---------- */
+dialog#ficha {
+  width: min(720px, calc(100vw - 32px)); max-height: 90vh;
+  background: var(--cartao); color: var(--tinta);
+  border: 1px solid var(--linha); padding: 24px; box-shadow: 0 20px 60px rgba(40, 30, 10, 0.35);
+}
+dialog#ficha::backdrop { background: rgba(58, 46, 36, 0.45); }
+.fechar {
+  position: absolute; top: 8px; right: 12px; font-size: 1.8rem; line-height: 1;
+  background: none; border: none; cursor: pointer; color: var(--tinta-suave);
+}
+.ficha-topo { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+.ficha-topo h3 { font-size: 1.8rem; margin: 0; line-height: 1.1; }
+.genes { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 0.95rem; margin-top: 18px; }
+.barra { height: 10px; background: var(--papel-escuro); border-radius: 5px; overflow: hidden; align-self: center; }
+.barra span { display: block; height: 100%; background: var(--verde); border-radius: 5px; }
+
+footer { text-align: center; padding: 30px 16px 40px; color: var(--tinta-suave); font-style: italic; }
+
+/* ---------- celular ---------- */
+@media (max-width: 640px) {
+  body { font-size: 17px; }
+  #historia { margin-left: 8px; }
+  #historia .dia { position: static; display: block; width: auto; text-align: left; }
+  .botao { margin-left: 8px; }
+  .ficha-topo { grid-template-columns: 1fr; }
+  .moldura { transform: none; padding: 6px; }
+}
