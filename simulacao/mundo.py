@@ -17,7 +17,7 @@ CEL = 25.0                                      # tamanho de cada quadradinho do
 COLS, LINHAS = int(LARGURA // CEL), int(ALTURA // CEL)
 
 TIQUES_POR_PERIODO = 300
-QUADROS_GRAVADOS = 60          # quantos "fotogramas" o site recebe pra animar
+QUADROS_GRAVADOS = 1           # o site só precisa da última "foto" pra começar o modo ao vivo
 COMIDA_POR_TIQUE = 2.4
 COMIDA_MAX = 900
 ENERGIA_PLANTA = 9.0
@@ -123,7 +123,8 @@ def _fotografar(estado, info):
         if c["id"] not in info:
             g = c["g"]
             info[c["id"]] = [c["esp"], round(g["tamanho"], 2), round(g["matiz"]),
-                             round(g["saturacao"], 2), round(g["luz"], 2), round(g["dieta"], 2)]
+                             round(g["saturacao"], 2), round(g["luz"], 2), round(g["dieta"], 2),
+                             round(g["velocidade"] * (0.7 + 0.3 * g["metabolismo"]), 2), round(g["visao"], 1)]
     return quadro
 
 

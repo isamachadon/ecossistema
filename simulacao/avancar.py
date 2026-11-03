@@ -105,7 +105,7 @@ def escrever_diario(estado, quadros, info):
         item["dieta"] = genes.dieta_nome(retrato)
         lista[chave] = item
     diario = {
-        "planeta": estado["planeta"], "periodo": estado["periodo"],
+        "planeta": estado["planeta"], "semente": estado["semente"], "periodo": estado["periodo"],
         "atualizado": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "largura": mundo.LARGURA, "altura": mundo.ALTURA, "cel": mundo.CEL,
         "biomas": estado["biomas"], "populacao": len(estado["criaturas"]),

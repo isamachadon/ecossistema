@@ -1,18 +1,25 @@
 // app.js: o "pintor" do site.
 // Lê o diario.json (que a simulação escreve) e o nomes.json (que você edita)
-// e desenha tudo: o mundo animado, os retratos, a linha do tempo e a árvore.
+// e desenha tudo: o mundo ao vivo, os retratos, a linha do tempo e a árvore.
 
 "use strict";
 
 const BIOMAS = {
-  campo:    { nome: "Campo",    cor: "#e2e5b0" },
-  floresta: { nome: "Floresta", cor: "#b5d19b" },
-  pantano:  { nome: "Pântano",  cor: "#b9d6cd" },
-  deserto:  { nome: "Deserto",  cor: "#f1d9a6" },
-  tundra:   { nome: "Tundra",   cor: "#e3e9ef" },
+  campo:    { nome: "Campo",    cor: "#dbe2ae", fert: 1.0 },
+  floresta: { nome: "Floresta", cor: "#a8c992", fert: 1.6 },
+  pantano:  { nome: "Pântano",  cor: "#acd1c8", fert: 1.2 },
+  deserto:  { nome: "Deserto",  cor: "#efd7a0", fert: 0.25 },
+  tundra:   { nome: "Tundra",   cor: "#e3eaef", fert: 0.45 },
 };
-const ICONES = { inicio: "🌍", especie_nova: "🌱", extincao: "🪦", evento: "⚡", fim_evento: "🌤️", migracao: "🧳" };
-const TINTA = "#3a2e24";
+const TIPOS_HIST = {
+  inicio:       { nome: "Começo",      cor: "#4f87a3" },
+  especie_nova: { nome: "Espécie nova", cor: "#2f6b45" },
+  extincao:     { nome: "Extinção",    cor: "#7d8a80" },
+  evento:       { nome: "Evento",      cor: "#c2522b" },
+  fim_evento:   { nome: "Fim de evento", cor: "#c98f1f" },
+  migracao:     { nome: "Migração",    cor: "#4f87a3" },
+};
+const TINTA = "#17241c";
 
 let D = null;      // o diário
 let NOMES = {};    // os nomes que você deu
@@ -49,6 +56,8 @@ function aviso(texto) {
   div.textContent = texto;
   $("#avisos").appendChild(div);
 }
+const tom = (g) => hsl(g.matiz, Math.min(0.5, g.saturacao * 0.6), 0.9);
+const numero = (id) => "Nº " + String(id).padStart(4, "0");
 
 // ---------------------------------------------------------------- nomes
 
@@ -62,6 +71,7 @@ function rotulo(id) {
   if (!e) return "espécie desconhecida";
   return nomeDado(id) || `sem nome (${cientifico(e)})`;
 }
+function rotuloCurto(id) { return nomeDado(id) || numero(id); }
 function linkEsp(id) {
   return `<a href="#" class="link-esp" data-id="${id}">${esc(rotulo(id))}</a>`;
 }
@@ -111,8 +121,7 @@ function descricoes(g, quantas = 3) {
   if (padrao === 2) d.push("Cheia de pintinhas. Parece que espirrou tinta.");
   if (padrao === 4) d.push("Escamas brilhantes, nível peixe de aquário chique.");
   if (d.length === 0) d.push("Uma espécie discreta. Prefere não chamar atenção.");
-  // embaralha de um jeito fixo pra cada genoma
-  const r = sorteador(hashGenes(g) ^ 99);
+  const r = sorteador(hashGenes(g) ^ 99);  // embaralha de um jeito fixo pra cada genoma
   for (let i = d.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [d[i], d[j]] = [d[j], d[i]]; }
   return d.slice(0, quantas);
 }
@@ -137,7 +146,7 @@ function desenharRetrato(tela, g) {
   ctx.lineJoin = "round";
 
   // sombra no chão
-  ctx.fillStyle = "rgba(70, 50, 30, 0.13)";
+  ctx.fillStyle = "rgba(23, 36, 28, 0.14)";
   ctx.beginPath(); ctx.ellipse(cx, chao, rx * 1.05, H * 0.035, 0, 0, Math.PI * 2); ctx.fill();
 
   // cauda (atrás do corpo)
@@ -241,7 +250,7 @@ function desenharRetrato(tela, g) {
     const r = rOlho * (0.85 + rnd() * 0.3);
     ctx.fillStyle = "#fffdf6"; ctx.strokeStyle = TINTA; ctx.lineWidth = lw * 0.8;
     ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = "#1f1813";
+    ctx.fillStyle = "#14100c";
     ctx.beginPath(); ctx.arc(px + r * 0.35, py + r * 0.05, r * 0.5, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = "#fff";
     ctx.beginPath(); ctx.arc(px + r * 0.5, py - r * 0.15, r * 0.16, 0, Math.PI * 2); ctx.fill();
@@ -410,129 +419,513 @@ function montarCabecalho() {
   const todas = Object.values(D.especies);
   const vivas = todas.filter((e) => e.extincao === null).length;
   $("#planeta").textContent = D.planeta;
-  $("#resumo").innerHTML = `Dia ${D.periodo} &middot; ${D.populacao} criaturas &middot; ${vivas} espécies vivas &middot; ${todas.length - vivas} extintas`;
-  $("#atualizado").textContent = "Última anotação: " + new Date(D.atualizado).toLocaleString("pt-BR");
-  document.title = `${D.planeta}: Diário do Ecossistema`;
+  $("#kicker").textContent = D.semente !== undefined ? `Planeta nº ${D.semente}` : "Planeta";
+  $("#dia-topo").textContent = `Dia ${D.periodo}`;
+  $("#st-dia").textContent = D.periodo;
+  $("#st-pop").textContent = D.populacao;
+  $("#st-vivas").textContent = vivas;
+  $("#st-extintas").textContent = todas.length - vivas;
+  $("#atualizado").textContent = "Última anotação em " + new Date(D.atualizado).toLocaleString("pt-BR");
+  document.title = `${D.planeta} · Diário do Ecossistema`;
 
   const s = D.ultimo_resumo || {};
   if (s.nascimentos !== undefined) {
-    $("#balanco").textContent = `Balanço do dia: ${s.nascimentos} nascimentos, ${s.fome} mortes de fome, ` +
-      `${s.predacao} viraram almoço, ${s.velhice} de velhice` + (s.praga ? ` e ${s.praga} de praga.` : ".");
+    $("#balanco").textContent = `Balanço do último dia: ${s.nascimentos} nascimentos · ${s.fome} de fome · ` +
+      `${s.predacao} viraram almoço · ${s.velhice} de velhice` + (s.praga ? ` · ${s.praga} de praga` : "");
   }
   $("#eventos-ativos").innerHTML = D.eventos_ativos.map((ev) =>
-    `<div class="evento-ativo"><strong>${esc(ev.nome)}</strong>${textoComNomes(ev.texto)}
-     <small>(${ev.restam === 1 ? "último dia" : `faltam ${ev.restam} dias`})</small></div>`).join("");
+    `<div class="evento-ativo"><span class="tag">${ev.restam === 1 ? "Último dia" : `Faltam ${ev.restam} dias`}</span>
+     <strong>${esc(ev.nome)}</strong><p>${textoComNomes(ev.texto)}</p></div>`).join("");
 }
 
-// ---------------------------------------------------------------- mundo animado
-
-function pintarFundo(ESC) {
-  const c = document.createElement("canvas");
-  c.width = D.largura * ESC; c.height = D.altura * ESC;
-  const g = c.getContext("2d");
-  g.fillStyle = "#f4ecd8"; g.fillRect(0, 0, c.width, c.height);
-  const cel = D.cel * ESC;
-  const r = sorteador(7);
-  D.biomas.forEach((linha, cy) => linha.forEach((b, cx) => {
-    const cor = BIOMAS[b].cor;
-    for (let k = 0; k < 4; k++) {   // manchas suaves, tipo aquarela
-      const x = (cx + 0.5 + (r() - 0.5) * 0.7) * cel, y = (cy + 0.5 + (r() - 0.5) * 0.7) * cel;
-      const raio = cel * (0.75 + r() * 0.45);
-      const grad = g.createRadialGradient(x, y, 0, x, y, raio);
-      grad.addColorStop(0, cor); grad.addColorStop(0.6, cor + "cc"); grad.addColorStop(1, cor + "00");
-      g.fillStyle = grad; g.beginPath(); g.arc(x, y, raio, 0, Math.PI * 2); g.fill();
-    }
-  }));
-  g.strokeStyle = "rgba(120, 90, 60, 0.07)"; g.lineWidth = 1;
-  for (let x = 0; x <= c.width; x += cel) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, c.height); g.stroke(); }
-  for (let y = 0; y <= c.height; y += cel) { g.beginPath(); g.moveTo(0, y); g.lineTo(c.width, y); g.stroke(); }
-  return c;
-}
+// ---------------------------------------------------------------- mundo ao vivo
+// Uma mini simulação de comportamento que roda no navegador, começando da última
+// "foto" do planeta. Os bichos procuram comida, caçam, fogem e descansam, sem parar.
 
 function montarMundo() {
-  const tela = $("#tela");
-  const ESC = 2;
-  tela.width = D.largura * ESC; tela.height = D.altura * ESC;
-  const ctx = tela.getContext("2d");
-  const fundo = pintarFundo(ESC);
+  const janela = $("#janela"), tela = $("#tela"), ctx = tela.getContext("2d");
+  const LW = D.largura, LH = D.altura, CEL = D.cel;
+  const COLS = D.biomas[0].length, LINHAS = D.biomas.length;
+  const rnd = sorteador(D.periodo * 7919 + 13);
 
   const presentes = new Set(D.biomas.flat());
   $("#legenda").innerHTML = Object.entries(BIOMAS).filter(([k]) => presentes.has(k))
-    .map(([, b]) => `<span><i style="background:${b.cor}"></i>${b.nome}</span>`).join("") +
-    `<span><i style="background:#6f8f3a"></i>Comida</span>` +
-    `<span><i style="background:#fff;border:2.5px solid #8b2f22"></i>Carnívoro</span>`;
+    .map(([, b]) => `<span><i style="background:${b.cor}"></i>${b.nome}</span>`).join("");
 
-  const quadros = D.quadros.map((q) => {
-    const m = new Map();
-    for (let i = 0; i < q.length; i += 3) m.set(q[i], [q[i + 1], q[i + 2]]);
-    return m;
-  });
-  if (!quadros.length) quadros.push(new Map());
-
-  let mouse = null;
-  tela.addEventListener("mousemove", (ev) => {
-    const r = tela.getBoundingClientRect();
-    mouse = [((ev.clientX - r.left) / r.width) * D.largura, ((ev.clientY - r.top) / r.height) * D.altura];
-  });
-  tela.addEventListener("mouseleave", () => { mouse = null; });
-
-  const FPS = 7, inicio = performance.now();
-
-  function bicho(x, y, info, alfa) {
-    const [, tam, matiz, sat, luz, dieta] = info;
-    const raio = (1.2 + tam * 1.1) * ESC;
-    ctx.globalAlpha = alfa;
-    ctx.fillStyle = hsl(matiz, sat, luz);
-    ctx.beginPath(); ctx.arc(x * ESC, y * ESC, raio, 0, Math.PI * 2); ctx.fill();
-    ctx.lineWidth = dieta > 0.66 ? 2.5 : 1;
-    ctx.strokeStyle = dieta > 0.66 ? "#8b2f22" : "rgba(58, 46, 36, 0.7)";
-    ctx.stroke();
-    ctx.globalAlpha = 1;
+  // --- os retratos de cada espécie viram "figurinhas" pra desenhar no mapa
+  const sprites = new Map();
+  function sprite(esp) {
+    let s = sprites.get(esp);
+    if (!s) {
+      s = document.createElement("canvas");
+      s.width = 180; s.height = 132;
+      if (D.especies[esp]) desenharRetrato(s, D.especies[esp].retrato);
+      sprites.set(esp, s);
+    }
+    return s;
   }
 
-  function quadro(agora) {
-    const total = Math.max(1, quadros.length - 1);
-    const pos = (((agora - inicio) / 1000) * FPS) % total;
-    const i = Math.floor(pos), a = pos - i;
-    const A = quadros[i], B = quadros[i + 1] || A;
-    ctx.drawImage(fundo, 0, 0);
+  // --- os bichos, a partir da última foto
+  const foto = D.quadros.length ? D.quadros[D.quadros.length - 1] : [];
+  const bichos = [];
+  for (let i = 0; i < foto.length; i += 3) {
+    const info = D.criaturas[foto[i]];
+    if (!info) continue;
+    const [esp, tam, matiz, sat, luz, dieta, vel = 1, visao = 20] = info;
+    bichos.push({
+      id: foto[i], esp, tam, matiz, sat, luz, dieta, vel, visao,
+      x: foto[i + 1], y: foto[i + 2], px: foto[i + 1], py: foto[i + 2],
+      ang: rnd() * Math.PI * 2, flip: rnd() < 0.5, fase: rnd() * 6, andou: 0,
+      estado: "", ameaca: null, presa: null, prato: null,
+      descanso: 0, saciado: Math.floor(rnd() * 80), impulso: 0,
+    });
+  }
 
-    ctx.fillStyle = "#6f8f3a";
-    for (let k = 0; k < D.comida.length; k += 2) {
-      ctx.beginPath(); ctx.arc(D.comida[k] * ESC, D.comida[k + 1] * ESC, 1.7, 0, Math.PI * 2); ctx.fill();
+  // --- a comida (brotinhos)
+  let comida = [];
+  for (let k = 0; k < D.comida.length; k += 2) comida.push({ x: D.comida[k], y: D.comida[k + 1], t: -1e9 });
+  const META_COMIDA = Math.max(200, comida.length);
+  const pesos = [];
+  let somaPesos = 0;
+  D.biomas.forEach((linha, cy) => linha.forEach((b, cx) => { somaPesos += BIOMAS[b].fert; pesos.push([somaPesos, cx, cy]); }));
+  function brotar(agora) {
+    const r = rnd() * somaPesos;
+    const p = pesos.find((q) => q[0] >= r) || pesos[pesos.length - 1];
+    comida.push({ x: (p[1] + rnd()) * CEL, y: (p[2] + rnd()) * CEL, t: agora });
+  }
+
+  // --- o cenário: cores suaves dos biomas + desenhos nítidos (árvores, capim, juncos...)
+  const mapaCores = document.createElement("canvas");
+  mapaCores.width = COLS; mapaCores.height = LINHAS;
+  const mc = mapaCores.getContext("2d");
+  D.biomas.forEach((linha, cy) => linha.forEach((b, cx) => { mc.fillStyle = BIOMAS[b].cor; mc.fillRect(cx, cy, 1, 1); }));
+  const fundo = document.createElement("canvas");
+  fundo.width = LW * 4; fundo.height = LH * 4;
+  const fc = fundo.getContext("2d");
+  fc.imageSmoothingEnabled = true; fc.imageSmoothingQuality = "high";
+  fc.drawImage(mapaCores, -0.5 * (fundo.width / COLS), -0.5 * (fundo.height / LINHAS),
+    fundo.width * (COLS + 1) / COLS, fundo.height * (LINHAS + 1) / LINHAS);
+  const rf = sorteador(99);
+  for (let k = 0; k < 2500; k++) {   // textura de terra
+    fc.fillStyle = `rgba(23, 36, 28, ${0.02 + rf() * 0.04})`;
+    fc.beginPath(); fc.arc(rf() * fundo.width, rf() * fundo.height, 1 + rf() * 3, 0, Math.PI * 2); fc.fill();
+  }
+
+  const decor = [];
+  const QTD = { floresta: 5, campo: 3, pantano: 3, deserto: 2, tundra: 3 };
+  D.biomas.forEach((linha, cy) => linha.forEach((b, cx) => {
+    for (let i = 0; i < QTD[b]; i++) decor.push({ b, x: (cx + rf()) * CEL, y: (cy + rf()) * CEL, s: 0.7 + rf() * 0.6, v: rf() });
+  }));
+  decor.sort((a, b) => a.y - b.y);
+
+  function desenharDecor(d, px) {
+    const s = d.s;
+    ctx.lineWidth = px * 1.1;
+    ctx.strokeStyle = "rgba(23, 36, 28, 0.55)";
+    if (d.b === "floresta") {
+      ctx.fillStyle = "#7a5a3a";
+      ctx.fillRect(d.x - 0.6 * s, d.y - 3 * s, 1.2 * s, 3 * s);
+      ctx.fillStyle = d.v < 0.5 ? "#4f8a52" : "#679c5d";
+      for (const [ox, oy, r] of [[-1.6, -4.2, 2.4], [1.6, -4.2, 2.4], [0, -5.8, 2.8]]) {
+        ctx.beginPath(); ctx.arc(d.x + ox * s, d.y + oy * s, r * s, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      }
+    } else if (d.b === "campo") {
+      ctx.strokeStyle = "#7f9a4c"; ctx.lineWidth = px * 1.4;
+      for (const k of [-1, 0, 1]) {
+        ctx.beginPath(); ctx.moveTo(d.x + k * 0.6 * s, d.y); ctx.lineTo(d.x + k * 1.4 * s, d.y - 2.4 * s); ctx.stroke();
+      }
+      if (d.v > 0.8) {
+        ctx.fillStyle = d.v > 0.9 ? "#e8a33d" : "#d9667b";
+        ctx.beginPath(); ctx.arc(d.x + 1.6 * s, d.y - 1.2 * s, 0.7 * s, 0, Math.PI * 2); ctx.fill();
+      }
+    } else if (d.b === "pantano") {
+      if (d.v < 0.45) {
+        ctx.strokeStyle = "rgba(60, 120, 130, 0.45)";
+        ctx.beginPath(); ctx.ellipse(d.x, d.y, 3 * s, 1 * s, 0, 0, Math.PI * 2); ctx.stroke();
+      } else {
+        ctx.strokeStyle = "#5f8a5a"; ctx.lineWidth = px * 1.3;
+        for (const k of [-1, 0.2, 1.1]) {
+          ctx.beginPath(); ctx.moveTo(d.x + k * s, d.y); ctx.lineTo(d.x + k * 1.2 * s, d.y - 4 * s); ctx.stroke();
+        }
+        ctx.fillStyle = "#7a5233";
+        ctx.beginPath(); ctx.ellipse(d.x + 0.25 * s, d.y - 3.6 * s, 0.45 * s, 1 * s, 0, 0, Math.PI * 2); ctx.fill();
+      }
+    } else if (d.b === "deserto") {
+      if (d.v > 0.75) {
+        ctx.fillStyle = "#6f9a58";
+        ctx.beginPath(); ctx.roundRect(d.x - 0.8 * s, d.y - 4.5 * s, 1.6 * s, 4.5 * s, 0.8 * s); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.roundRect(d.x + 0.8 * s, d.y - 3.2 * s, 1.4 * s, 1 * s, 0.5 * s); ctx.fill(); ctx.stroke();
+      } else {
+        ctx.strokeStyle = "rgba(170, 120, 50, 0.45)"; ctx.lineWidth = px * 1.4;
+        ctx.beginPath(); ctx.arc(d.x, d.y + 2 * s, 3.4 * s, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke();
+      }
+    } else if (d.b === "tundra") {
+      if (d.v < 0.45) {
+        ctx.fillStyle = "#b9c0c4";
+        ctx.beginPath(); ctx.ellipse(d.x, d.y - 0.8 * s, 2 * s, 1.2 * s, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      } else {
+        ctx.strokeStyle = "rgba(90, 130, 160, 0.55)";
+        for (let k = 0; k < 3; k++) {
+          const a = (k * Math.PI) / 3;
+          ctx.beginPath();
+          ctx.moveTo(d.x - Math.cos(a) * 1.2 * s, d.y - Math.sin(a) * 1.2 * s);
+          ctx.lineTo(d.x + Math.cos(a) * 1.2 * s, d.y + Math.sin(a) * 1.2 * s); ctx.stroke();
+        }
+      }
     }
+  }
 
-    let perto = null, pertoD = 36;
-    const considerar = (id, x, y) => {
-      if (!mouse) return;
-      const d = (x - mouse[0]) ** 2 + (y - mouse[1]) ** 2;
-      if (d < pertoD) { pertoD = d; perto = { id, x, y }; }
+  // --- câmera
+  const cam = { x: LW / 2, y: LH / 2, zoom: 1, zoomAlvo: 1 };
+  let W = 0, H = 0, dpr = 1, base = 1;
+  const escala = () => base * cam.zoom;
+  function limitarCam() {
+    const s = escala(), mw = W / s / 2, mh = H / s / 2;
+    cam.x = mw * 2 >= LW ? LW / 2 : Math.min(Math.max(cam.x, mw), LW - mw);
+    cam.y = mh * 2 >= LH ? LH / 2 : Math.min(Math.max(cam.y, mh), LH - mh);
+  }
+  function medir() {
+    const r = janela.getBoundingClientRect();
+    dpr = window.devicePixelRatio || 1;
+    W = r.width; H = r.height;
+    tela.width = Math.round(W * dpr); tela.height = Math.round(H * dpr);
+    base = Math.max(W / LW, H / LH);
+    limitarCam();
+  }
+  new ResizeObserver(medir).observe(janela);
+  medir();
+  const paraMundo = (sx, sy) => [(sx - W / 2) / escala() + cam.x, (sy - H / 2) / escala() + cam.y];
+  const paraTela = (x, y) => [(x - cam.x) * escala() + W / 2, (y - cam.y) * escala() + H / 2];
+  const tamFigura = (b) => 8 + b.tam * 4.5;   // largura da figurinha, em unidades do mundo
+
+  function zoomEm(fator, sx = W / 2, sy = H / 2) {
+    const [mx, my] = paraMundo(sx, sy);
+    cam.zoom = cam.zoomAlvo = Math.min(7, Math.max(1, cam.zoom * fator));
+    cam.x = mx - (sx - W / 2) / escala();
+    cam.y = my - (sy - H / 2) / escala();
+    limitarCam();
+  }
+
+  // --- seguir um bicho
+  let seguindo = null, painelRelogio = 0;
+  function bichoEm(sx, sy) {
+    let melhor = null, melhorD = Infinity;
+    for (const b of bichos) {
+      const [tx, ty] = paraTela(b.x, b.y);
+      const r = Math.max(10, (tamFigura(b) * escala()) / 2);
+      const d = Math.hypot(tx - sx, ty - r * 0.5 - sy);
+      if (d < r && d < melhorD) { melhor = b; melhorD = d; }
+    }
+    return melhor;
+  }
+  function seguir(b) {
+    seguindo = b;
+    $("#painel").hidden = !b;
+    if (!b) return;
+    if (cam.zoom < 3) cam.zoomAlvo = 3.2;
+    const e = D.especies[b.esp];
+    const t = document.createElement("canvas");
+    t.width = 360; t.height = 230;
+    desenharRetrato(t, e.retrato);
+    const caixa = $("#p-retrato");
+    caixa.innerHTML = "";
+    caixa.style.background = tom(e.retrato);
+    caixa.appendChild(t);
+    $("#p-etq").textContent = `${numero(b.esp)} · ${e.dieta}`;
+    $("#p-nome").textContent = nomeDado(b.esp) || "Sem nome";
+    $("#p-cient").textContent = cientifico(e);
+    $("#p-estado").textContent = b.estado;
+  }
+  $("#p-fechar").onclick = () => seguir(null);
+  $("#p-ficha").onclick = () => seguindo && abrirFicha(seguindo.esp);
+
+  // --- mouse, toque e botões
+  let arrasto = null, mouse = null;
+  tela.addEventListener("pointerdown", (ev) => {
+    tela.setPointerCapture(ev.pointerId);
+    arrasto = { x: ev.offsetX, y: ev.offsetY, cx: cam.x, cy: cam.y, moveu: false };
+  });
+  tela.addEventListener("pointermove", (ev) => {
+    mouse = [ev.offsetX, ev.offsetY];
+    if (!arrasto) return;
+    const dx = ev.offsetX - arrasto.x, dy = ev.offsetY - arrasto.y;
+    if (Math.abs(dx) + Math.abs(dy) > 5) { arrasto.moveu = true; tela.classList.add("arrastando"); }
+    if (arrasto.moveu) {
+      seguindo = null; $("#painel").hidden = true;
+      cam.x = arrasto.cx - dx / escala(); cam.y = arrasto.cy - dy / escala();
+      limitarCam();
+    }
+  });
+  tela.addEventListener("pointerup", (ev) => {
+    if (arrasto && !arrasto.moveu) seguir(bichoEm(ev.offsetX, ev.offsetY));
+    arrasto = null; tela.classList.remove("arrastando");
+  });
+  tela.addEventListener("pointerleave", () => { mouse = null; });
+  tela.addEventListener("wheel", (ev) => {
+    ev.preventDefault();
+    zoomEm(Math.exp(-ev.deltaY * 0.0015), ev.offsetX, ev.offsetY);
+  }, { passive: false });
+
+  let velocidade = 1, pausado = false;
+  $("#bt-pausa").onclick = () => {
+    pausado = !pausado;
+    $("#bt-pausa").textContent = pausado ? "▶" : "❚❚";
+    $("#bt-pausa").title = pausado ? "Continuar" : "Pausar";
+    $(".ao-vivo").classList.toggle("pausado", pausado);
+  };
+  document.querySelectorAll(".controles [data-vel]").forEach((bt) => {
+    bt.onclick = () => {
+      velocidade = Number(bt.dataset.vel);
+      document.querySelectorAll(".controles [data-vel]").forEach((x) => x.classList.toggle("ativo", x === bt));
     };
-    for (const [id, p] of A) {
-      const info = D.criaturas[id];
-      if (!info) continue;
-      const q = B.get(id);
-      const x = q ? p[0] + (q[0] - p[0]) * a : p[0];
-      const y = q ? p[1] + (q[1] - p[1]) * a : p[1];
-      bicho(x, y, info, q ? 1 : 1 - a);  // sem próximo quadro = morreu, vai sumindo
-      considerar(id, x, y);
+  });
+  $("#bt-mais").onclick = () => zoomEm(1.5);
+  $("#bt-menos").onclick = () => zoomEm(1 / 1.5);
+  $("#bt-centro").onclick = () => { seguir(null); cam.zoom = cam.zoomAlvo = 1; limitarCam(); };
+
+  // --- balõezinhos ("nham", "nhac!", "!")
+  const baloes = [];
+  function balao(b, texto, cor, agora) {
+    if (baloes.length > 30) return;
+    baloes.push({ b, texto, cor, t: agora });
+  }
+
+  // --- o cérebro dos bichos
+  const TIQUE = 1 / 15;
+  let tique = 0;
+  let grade = new Map(), gradeComida = new Map();
+  const chave = (gx, gy) => gx * 64 + gy;
+  function vizinhos(mapa, x, y, r, fn) {
+    const x0 = Math.floor((x - r) / CEL), x1 = Math.floor((x + r) / CEL);
+    const y0 = Math.floor((y - r) / CEL), y1 = Math.floor((y + r) / CEL);
+    for (let gx = x0; gx <= x1; gx++) for (let gy = y0; gy <= y1; gy++) {
+      const l = mapa.get(chave(gx, gy));
+      if (l) for (const o of l) fn(o);
     }
-    for (const [id, q] of B) {
-      if (A.has(id) || !D.criaturas[id]) continue;
-      bicho(q[0], q[1], D.criaturas[id], a);  // filhote nascendo
+  }
+
+  function pensar(b) {
+    const v2 = b.visao * b.visao;
+    let dA = v2 * 0.3, dP = v2, dC = v2;
+    b.ameaca = null; b.presa = null; b.prato = null;
+    vizinhos(grade, b.x, b.y, b.visao, (o) => {
+      if (o === b || o.esp === b.esp) return;
+      const d2 = (o.x - b.x) ** 2 + (o.y - b.y) ** 2;
+      if (d2 > v2) return;
+      // predador de barriga cheia não assusta ninguém
+      if (o.dieta > 0.5 && o.tam > b.tam && o.descanso <= 0 && d2 < dA) { dA = d2; b.ameaca = o; }
+      if (b.dieta > 0.3 && b.descanso <= 0 && o.tam < b.tam * 1.3 && d2 < dP) { dP = d2; b.presa = o; }
+    });
+    if (b.dieta < 0.9 && b.saciado <= 0) {
+      vizinhos(gradeComida, b.x, b.y, b.visao, (c) => {
+        if (c.comida) return;
+        const d2 = (c.x - b.x) ** 2 + (c.y - b.y) ** 2;
+        if (d2 < dC) { dC = d2; b.prato = c; }
+      });
+    }
+    if (b.presa && b.prato) {   // onívoro escolhe o que compensa mais
+      if ((1 - b.dieta) / Math.sqrt(dC + 1) > b.dieta / Math.sqrt(dP + 1)) b.presa = null;
+      else b.prato = null;
+    }
+  }
+
+  function passo(agora) {
+    grade = new Map();
+    for (const b of bichos) {
+      const k = chave(Math.floor(b.x / CEL), Math.floor(b.y / CEL));
+      (grade.get(k) || grade.set(k, []).get(k)).push(b);
+    }
+    gradeComida = new Map();
+    for (const c of comida) {
+      const k = chave(Math.floor(c.x / CEL), Math.floor(c.y / CEL));
+      (gradeComida.get(k) || gradeComida.set(k, []).get(k)).push(c);
     }
 
-    if (perto) {
-      const esp = D.criaturas[perto.id][0];
-      const texto = rotulo(esp);
-      ctx.font = "26px 'EB Garamond', Georgia, serif";
+    for (const b of bichos) {
+      b.px = b.x; b.py = b.y;
+      if (b.descanso > 0) b.descanso--;
+      if (b.saciado > 0) b.saciado--;
+      if (b.impulso > 0) b.impulso--;
+      if ((tique + b.id) % 4 === 0) pensar(b);
+
+      let rapidez = b.vel * 0.9, rumo = null;
+      const alcance = 1.5 + b.tam;
+      if (b.ameaca) {
+        const a = b.ameaca;
+        rumo = Math.atan2(b.y - a.y, b.x - a.x);
+        rapidez *= 1.1;
+        if (!b.estado.startsWith("Fugindo")) balao(b, "!", "#c2522b", agora);
+        b.estado = `Fugindo de ${rotuloCurto(a.esp)}`;
+      } else if (b.presa) {
+        const p = b.presa;
+        rumo = Math.atan2(p.y - b.y, p.x - b.x);
+        rapidez *= 1.2;
+        b.estado = `Caçando ${rotuloCurto(p.esp)}`;
+        if (Math.hypot(p.x - b.x, p.y - b.y) < alcance + 1) {
+          balao(b, "nhac!", "#c2522b", agora);
+          balao(p, "ufa!", "#4f87a3", agora);
+          b.descanso = 150 + Math.floor(rnd() * 120);
+          p.impulso = 25;
+          p.ang = Math.atan2(p.y - b.y, p.x - b.x);
+          b.presa = null;
+        }
+      } else if (b.prato && !b.prato.comida) {
+        const c = b.prato;
+        rumo = Math.atan2(c.y - b.y, c.x - b.x);
+        rapidez = Math.min(rapidez, Math.hypot(c.x - b.x, c.y - b.y));
+        b.estado = "Indo comer um brotinho";
+        if (Math.hypot(c.x - b.x, c.y - b.y) < alcance) {
+          c.comida = true;
+          b.saciado = 60 + Math.floor(rnd() * 140);
+          b.prato = null;
+          if (rnd() < 0.35) balao(b, "nham", "#2f6b45", agora);
+        }
+      } else {
+        b.prato = null;
+        rapidez *= 0.45;
+        if (b.descanso > 0) { rapidez *= 0.25; b.estado = "De barriga cheia, cochilando"; }
+        else if (b.saciado > 0) b.estado = "Passeando, sem pressa nenhuma";
+        else b.estado = "Procurando o que comer";
+        b.ang += (rnd() - 0.5) * 0.6;
+      }
+      if (rumo !== null) {   // vira aos pouquinhos, não de uma vez
+        let d = rumo - b.ang;
+        d = Math.atan2(Math.sin(d), Math.cos(d));
+        b.ang += d * 0.5;
+      }
+      if (b.impulso > 0) rapidez *= 1.8;
+
+      b.x += Math.cos(b.ang) * rapidez;
+      b.y += Math.sin(b.ang) * rapidez;
+      if (b.x < 1 || b.x > LW - 1) { b.ang = Math.PI - b.ang; b.x = Math.min(Math.max(b.x, 1), LW - 1); }
+      if (b.y < 2 || b.y > LH - 1) { b.ang = -b.ang; b.y = Math.min(Math.max(b.y, 2), LH - 1); }
+      const andou = Math.hypot(b.x - b.px, b.y - b.py);
+      b.andou = andou;
+      b.fase += andou * 0.9;
+      if (Math.abs(b.x - b.px) > 0.05) b.flip = b.x < b.px;
+    }
+
+    comida = comida.filter((c) => !c.comida);
+    if (comida.length < META_COMIDA && rnd() < 0.7) brotar(agora);
+    tique++;
+  }
+
+  // --- desenho
+  function desenhar(agora, alfa) {
+    const s = escala(), px = 1 / s;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = "#e2e3c4"; ctx.fillRect(0, 0, W, H);
+    ctx.setTransform(dpr * s, 0, 0, dpr * s, dpr * (W / 2 - cam.x * s), dpr * (H / 2 - cam.y * s));
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(fundo, 0, 0, LW, LH);
+
+    const [x0, y0] = paraMundo(-20, -20), [x1, y1] = paraMundo(W + 20, H + 40);
+    const dentro = (x, y, m = 0) => x > x0 - m && x < x1 + m && y > y0 - m && y < y1 + m;
+
+    ctx.globalAlpha = 0.75;   // cenário mais discreto, pros bichos aparecerem
+    for (const d of decor) if (dentro(d.x, d.y, 8)) desenharDecor(d, px);
+    ctx.globalAlpha = 1;
+
+    // brotinhos de comida
+    for (const c of comida) {
+      if (!dentro(c.x, c.y)) continue;
+      const k = Math.min(1, (agora - c.t) / 700);
+      if (k <= 0) continue;
+      ctx.strokeStyle = "#4c7a34"; ctx.lineWidth = Math.max(px, 0.25);
+      ctx.beginPath(); ctx.moveTo(c.x, c.y); ctx.lineTo(c.x, c.y - 1.2 * k); ctx.stroke();
+      ctx.fillStyle = "#6aa84a";
+      ctx.beginPath(); ctx.ellipse(c.x - 0.6 * k, c.y - 1.3 * k, 0.75 * k, 0.4 * k, -0.5, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(c.x + 0.6 * k, c.y - 1.4 * k, 0.75 * k, 0.4 * k, 0.5, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // bichos, de trás pra frente (quem está mais embaixo fica na frente)
+    const visiveis = bichos.filter((b) => dentro(b.x, b.y, 10)).sort((a, b) => a.y - b.y);
+    for (const b of visiveis) {
+      const x = b.px + (b.x - b.px) * alfa, y = b.py + (b.y - b.py) * alfa;
+      const larg = tamFigura(b), alt = (larg * 132) / 180;
+      if (b === seguindo) {
+        ctx.strokeStyle = "rgba(194, 82, 43, 0.5)"; ctx.lineWidth = px * 1.5;
+        ctx.setLineDash([px * 6, px * 5]);
+        ctx.beginPath(); ctx.arc(x, y, b.visao, 0, Math.PI * 2); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.strokeStyle = "#c2522b"; ctx.lineWidth = px * 2.5;
+        ctx.beginPath(); ctx.ellipse(x, y - alt * 0.1, larg * 0.45, larg * 0.14, 0, 0, Math.PI * 2); ctx.stroke();
+      } else if (b.dieta > 0.66) {
+        ctx.strokeStyle = "rgba(194, 82, 43, 0.85)"; ctx.lineWidth = px * 1.5;
+        ctx.beginPath(); ctx.ellipse(x, y - alt * 0.1, larg * 0.4, larg * 0.12, 0, 0, Math.PI * 2); ctx.stroke();
+      }
+      if (larg * s < 9) {   // de muito longe vira bolinha
+        ctx.fillStyle = hsl(b.matiz, b.sat, b.luz);
+        ctx.beginPath(); ctx.arc(x, y - larg * 0.3, larg * 0.35, 0, Math.PI * 2); ctx.fill();
+        continue;
+      }
+      const pulo = b.andou > 0.05 ? Math.abs(Math.sin(b.fase)) * alt * 0.09 : Math.sin(agora / 600 + b.id) * alt * 0.015;
+      ctx.save();
+      ctx.translate(x, y - pulo);
+      if (b.flip) ctx.scale(-1, 1);
+      ctx.rotate(b.andou > 0.05 ? Math.sin(b.fase) * 0.06 : 0);
+      ctx.drawImage(sprite(b.esp), -larg / 2, -alt * 0.84, larg, alt);
+      ctx.restore();
+    }
+
+    // daqui pra baixo, coisas desenhadas em pixels da tela
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    for (let i = baloes.length - 1; i >= 0; i--) {
+      const bl = baloes[i], idade = (agora - bl.t) / 1100;
+      if (idade >= 1) { baloes.splice(i, 1); continue; }
+      const [tx, ty] = paraTela(bl.b.x, bl.b.y);
+      const y = ty - tamFigura(bl.b) * escala() * 0.7 - 10 - idade * 18;
+      ctx.globalAlpha = 1 - idade * idade;
+      ctx.font = "600 13px 'Instrument Sans', system-ui, sans-serif";
+      const w = ctx.measureText(bl.texto).width + 14;
+      ctx.fillStyle = "#fbf8f1"; ctx.strokeStyle = bl.cor; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.roundRect(tx - w / 2, y - 12, w, 22, 11); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = bl.cor; ctx.textAlign = "center"; ctx.fillText(bl.texto, tx, y + 4);
+      ctx.textAlign = "start"; ctx.globalAlpha = 1;
+    }
+
+    // etiqueta de quem está debaixo do mouse
+    const sob = mouse && !arrasto ? bichoEm(mouse[0], mouse[1]) : null;
+    tela.classList.toggle("sobre-bicho", !!sob);
+    if (sob && sob !== seguindo) {
+      const [tx, ty] = paraTela(sob.x, sob.y);
+      const texto = nomeDado(sob.esp) || `Sem nome · ${numero(sob.esp)}`;
+      ctx.font = "500 13px 'Instrument Sans', system-ui, sans-serif";
       const w = ctx.measureText(texto).width + 20;
-      let x = perto.x * ESC + 14, y = perto.y * ESC - 44;
-      if (x + w > tela.width) x = tela.width - w - 4;
-      if (y < 4) y = perto.y * ESC + 14;
-      ctx.fillStyle = "rgba(255, 250, 240, 0.95)"; ctx.strokeStyle = TINTA; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.rect(x, y, w, 36); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = TINTA; ctx.fillText(texto, x + 10, y + 26);
+      let lx = tx - w / 2, ly = ty - tamFigura(sob) * escala() * 0.75 - 34;
+      lx = Math.min(Math.max(lx, 6), W - w - 6);
+      if (ly < 6) ly = ty + 10;
+      ctx.fillStyle = "rgba(23, 36, 28, 0.92)";
+      ctx.beginPath(); ctx.roundRect(lx, ly, w, 26, 13); ctx.fill();
+      ctx.fillStyle = "#f3eee3"; ctx.fillText(texto, lx + 10, ly + 17);
+    }
+  }
+
+  // --- o relógio
+  let acumulado = 0, ultimoT = performance.now(), visivel = true;
+  new IntersectionObserver((es) => { visivel = es[0].isIntersecting; }).observe(janela);
+  function quadro(agora) {
+    const dt = Math.min(0.25, (agora - ultimoT) / 1000);
+    ultimoT = agora;
+    if (visivel) {
+      if (!pausado) {
+        acumulado += dt * velocidade;
+        while (acumulado >= TIQUE) { passo(agora); acumulado -= TIQUE; }
+      }
+      if (cam.zoom !== cam.zoomAlvo) {
+        cam.zoom += (cam.zoomAlvo - cam.zoom) * 0.12;
+        if (Math.abs(cam.zoomAlvo - cam.zoom) < 0.01) cam.zoom = cam.zoomAlvo;
+      }
+      if (seguindo) {
+        cam.x += (seguindo.x - cam.x) * 0.1;
+        cam.y += (seguindo.y - cam.y) * 0.1;
+      }
+      limitarCam();
+      desenhar(agora, pausado ? 1 : acumulado / TIQUE);
+      if (seguindo && agora - painelRelogio > 250) {
+        $("#p-estado").textContent = seguindo.estado;
+        painelRelogio = agora;
+      }
     }
     requestAnimationFrame(quadro);
   }
@@ -541,36 +934,44 @@ function montarMundo() {
 
 // ---------------------------------------------------------------- espécies
 
-function grafico(id) {
+function grafico(id, cor) {
   const pontos = D.pop_hist.map((h) => h.n[id] || 0);
   if (pontos.length < 2) return "";
   const max = Math.max(...pontos, 1);
-  const W = 240, H = 34;
-  const xy = pontos.map((v, i) => `${((i / (pontos.length - 1)) * W).toFixed(1)},${(H - 2 - (v / max) * (H - 4)).toFixed(1)}`);
+  const W = 240, H = 36;
+  const xy = pontos.map((v, i) => [(i / (pontos.length - 1)) * W, H - 2 - (v / max) * (H - 6)]);
+  const linha = xy.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
   return `<svg class="grafico" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-label="População ao longo dos dias">
-    <polyline points="${xy.join(" ")}" fill="none" stroke="#9a7b56" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>`;
+    <polygon points="0,${H} ${linha} ${W},${H}" fill="${cor}" opacity=".18"/>
+    <polyline points="${linha}" fill="none" stroke="${cor}" stroke-width="1.6" vector-effect="non-scaling-stroke"/></svg>`;
 }
 
 function cartao(e) {
   const div = document.createElement("article");
   div.className = "cartao";
   const nome = nomeDado(e.id);
+  const g = e.retrato;
   div.innerHTML = `
-    <div class="retrato"></div>
-    <h3><span class="numero">nº ${e.id}</span>${nome ? esc(nome) : `Sem nome <span class="selo">batize-me!</span>`}</h3>
-    <p class="cientifico">${esc(cientifico(e))}</p>
-    ${nome ? "" : `<p class="sugestao">Sugestão da naturalista: “${esc(e.apelido_sugerido)}”</p>`}
-    <dl class="dados">
-      <dt>População</dt><dd>${e.pop} <small>(recorde: ${e.pico})</small></dd>
-      <dt>Idade</dt><dd>${dias(D.periodo - e.nascimento)}</dd>
-      <dt>Dieta</dt><dd>${e.dieta}</dd>
-      <dt>Origem</dt><dd>${origem(e)}</dd>
-    </dl>
-    <ul class="notas">${descricoes(e.retrato).map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
-    ${grafico(e.id)}`;
+    <div class="retrato" style="--tom:${tom(g)}">
+      <span class="etiqueta">${numero(e.id)} · ${e.dieta}</span>
+      ${nome ? "" : `<span class="selo">Batize-me</span>`}
+    </div>
+    <div class="corpo">
+      <h3 class="${nome ? "" : "sem-nome"}">${nome ? esc(nome) : "Sem nome"}</h3>
+      <p class="cientifico">${esc(cientifico(e))}</p>
+      ${nome ? "" : `<p class="sugestao">Sugestão: <b>${esc(e.apelido_sugerido)}</b></p>`}
+      <div class="numeros">
+        <div><b>${e.pop}</b><span>População</span></div>
+        <div><b>${e.pico}</b><span>Recorde</span></div>
+        <div><b>${D.periodo - e.nascimento}</b><span>Dias</span></div>
+      </div>
+      <p class="origem">${origem(e)}</p>
+      <ul class="notas">${descricoes(g).map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
+      ${grafico(e.id, hsl(g.matiz, Math.max(0.4, g.saturacao), 0.38))}
+    </div>`;
   const tela = document.createElement("canvas");
-  tela.width = 360; tela.height = 260;
-  desenharRetrato(tela, e.retrato);
+  tela.width = 400; tela.height = 280;
+  desenharRetrato(tela, g);
   div.querySelector(".retrato").appendChild(tela);
   div.addEventListener("click", (ev) => { if (!ev.target.closest("a")) abrirFicha(e.id); });
   return div;
@@ -582,8 +983,9 @@ function montarEspecies() {
   lista.innerHTML = "";
   const semNome = vivas.filter((e) => !nomeDado(e.id)).length;
   $("#nota-especies").textContent = semNome === 0 ? "Todo mundo batizado. Que organização!"
-    : semNome === 1 ? "1 espécie esperando batismo." : `${semNome} espécies esperando batismo.`;
-  if (!vivas.length) lista.innerHTML = `<p class="nota">Ninguém vivo no momento. Um silêncio constrangedor.</p>`;
+    : semNome === 1 ? "Uma espécie está esperando batismo. Clique num cartão pra ver a ficha completa."
+    : `${semNome} espécies estão esperando batismo. Clique num cartão pra ver a ficha completa.`;
+  if (!vivas.length) lista.innerHTML = `<p class="desc">Ninguém vivo no momento. Um silêncio constrangedor.</p>`;
   for (const e of vivas) lista.appendChild(cartao(e));
 }
 
@@ -597,10 +999,12 @@ function montarHistoria() {
     (filtro === "evento" && ["evento", "fim_evento", "migracao", "inicio"].includes(h.tipo));
   function render() {
     const lista = itens.filter(passa);
-    ol.innerHTML = lista.slice(0, mostrar).map((h) =>
-      `<li class="h-${h.tipo}"><span class="dia">Dia ${h.periodo}</span><span class="icone">${ICONES[h.tipo] || "•"}</span>` +
-      `<span class="texto">${textoComNomes(h.texto)}</span></li>`).join("") ||
-      `<li><span class="texto">Nada anotado por aqui ainda.</span></li>`;
+    ol.innerHTML = lista.slice(0, mostrar).map((h) => {
+      const t = TIPOS_HIST[h.tipo] || { nome: h.tipo, cor: "#7d8a80" };
+      return `<li class="h-${h.tipo}"><span class="dia">Dia ${String(h.periodo).padStart(3, "0")}</span>` +
+        `<span class="tipo"><i style="background:${t.cor}"></i>${t.nome}</span>` +
+        `<span class="texto">${textoComNomes(h.texto)}</span></li>`;
+    }).join("") || `<li><span></span><span></span><span class="texto">Nada anotado por aqui ainda.</span></li>`;
     $("#mais-historia").hidden = mostrar >= lista.length;
   }
   $("#mais-historia").onclick = () => { mostrar += 60; render(); };
@@ -632,10 +1036,10 @@ function montarArvore() {
     for (let i = f.length - 1; i >= 0; i--) pilha.push(f[i]);
   }
 
-  const LINHA = 24, ESQ = 24, TOPO = 34;
+  const LINHA = 28, ESQ = 24, TOPO = 36;
   const total = Math.max(1, D.periodo);
-  const pxDia = Math.max(5, Math.min(40, 720 / total));
-  const W = ESQ + total * pxDia + 300, H = TOPO + ordem.length * LINHA + 12;
+  const pxDia = Math.max(6, Math.min(48, 760 / total));
+  const W = ESQ + total * pxDia + 320, H = TOPO + ordem.length * LINHA + 12;
   const linhaDe = {};
   ordem.forEach((e, i) => { linhaDe[e.id] = i; });
   const X = (p) => ESQ + p * pxDia, Y = (i) => TOPO + i * LINHA + LINHA / 2;
@@ -644,21 +1048,22 @@ function montarArvore() {
   let passo = 1;
   for (const p of [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000]) { passo = p; if (p * pxDia >= 70) break; }
   for (let d = 0; d <= total; d += passo) {
-    partes.push(`<line x1="${X(d)}" x2="${X(d)}" y1="${TOPO - 10}" y2="${H}" stroke="rgba(90,70,50,.12)" stroke-dasharray="3 4"/>`);
-    partes.push(`<text class="eixo" x="${X(d)}" y="${TOPO - 14}" text-anchor="middle">dia ${d}</text>`);
+    partes.push(`<line x1="${X(d)}" x2="${X(d)}" y1="${TOPO - 10}" y2="${H}" stroke="rgba(23,36,28,.08)"/>`);
+    partes.push(`<text class="eixo" x="${X(d)}" y="${TOPO - 16}" text-anchor="middle">DIA ${d}</text>`);
   }
   for (const e of ordem) {
     const viva = e.extincao === null;
     const y = Y(linhaDe[e.id]);
     const x0 = X(e.nascimento), x1 = Math.max(X(viva ? D.periodo : e.extincao), x0 + 4);
     const g = e.retrato;
-    const cor = viva ? hsl(g.matiz, Math.max(0.35, g.saturacao), Math.min(0.45, g.luz)) : "#a39a8c";
+    const cor = viva ? hsl(g.matiz, Math.max(0.45, g.saturacao), Math.min(0.42, g.luz)) : "#b3b8ae";
     if (e.pai != null && linhaDe[e.pai] !== undefined) {
-      partes.push(`<path d="M${x0} ${Y(linhaDe[e.pai])} V${y}" stroke="${cor}" stroke-width="1.5" fill="none" opacity=".8"/>`);
+      const yp = Y(linhaDe[e.pai]);
+      partes.push(`<path d="M${x0} ${yp} C${x0 + 10} ${yp}, ${x0 - 4} ${y}, ${x0 + 6} ${y}" stroke="${cor}" stroke-width="1.6" fill="none"/>`);
     }
-    partes.push(`<line x1="${x0}" x2="${x1}" y1="${y}" y2="${y}" stroke="${cor}" stroke-width="${viva ? 5 : 3}" stroke-linecap="round"${viva ? "" : ' stroke-dasharray="6 3"'}/>`);
-    partes.push(`<circle cx="${x0}" cy="${y}" r="3.5" fill="${cor}"/>`);
-    partes.push(`<text class="rotulo${viva ? "" : " extinta"}" data-id="${e.id}" x="${x1 + 8}" y="${y + 5}">${viva ? "" : "† "}${esc(rotulo(e.id))}</text>`);
+    partes.push(`<line x1="${x0}" x2="${x1}" y1="${y}" y2="${y}" stroke="${cor}" stroke-width="${viva ? 6 : 3}" stroke-linecap="round"${viva ? "" : ' stroke-dasharray="5 4"'}/>`);
+    partes.push(`<circle cx="${x0}" cy="${y}" r="4" fill="#fbf8f1" stroke="${cor}" stroke-width="2"/>`);
+    partes.push(`<text class="rotulo${viva ? "" : " extinta"}" data-id="${e.id}" x="${x1 + 10}" y="${y + 4.5}">${viva ? "" : "† "}${esc(rotulo(e.id))}</text>`);
   }
   svg.setAttribute("width", W); svg.setAttribute("height", H);
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
@@ -685,30 +1090,33 @@ function abrirFicha(id) {
   const genes = ROTULOS_GENES.map(([k, rot, min, max]) => {
     const v = g[k], pct = Math.max(2, Math.min(100, ((v - min) / (max - min)) * 100));
     const valor = ["patas", "olhos", "antenas", "ninhada"].includes(k) ? Math.round(v) : v.toFixed(2);
-    return `<span>${rot} <small>(${valor})</small></span><div class="barra"><span style="width:${pct}%"></span></div>`;
+    return `<span>${rot}</span><div class="barra"><span style="width:${pct}%"></span></div><span class="valor">${valor}</span>`;
   }).join("");
   $("#ficha-conteudo").innerHTML = `
     <div class="ficha-topo">
-      <div class="retrato"></div>
-      <div>
-        <p class="numero" style="float:none">nº ${e.id}</p>
+      <div class="retrato" style="--tom:${tom(g)}"></div>
+      <div class="ficha-info">
+        <p class="etiqueta">${numero(e.id)} · ${e.dieta}</p>
         <h3>${nome ? esc(nome) : "Sem nome"}</h3>
         <p class="cientifico">${esc(cientifico(e))}</p>
-        ${nome ? "" : `<p class="sugestao">Sugestão: “${esc(e.apelido_sugerido)}”</p>`}
+        ${nome ? "" : `<p class="sugestao">Sugestão: <b>${esc(e.apelido_sugerido)}</b></p>`}
         <dl class="dados">
           <dt>Situação</dt><dd>${e.extincao === null ? `Viva, ${e.pop} indivíduos` : `Extinta no dia ${e.extincao}`}</dd>
           <dt>Surgiu</dt><dd>Dia ${e.nascimento}</dd>
           <dt>Recorde</dt><dd>${e.pico} indivíduos</dd>
-          <dt>Dieta</dt><dd>${e.dieta}</dd>
           <dt>Origem</dt><dd>${origem(e)}</dd>
-          <dt>Filhas</dt><dd>${descendentes.length ? descendentes.map((x) => linkEsp(x.id)).join(", ") : "nenhuma (ainda)"}</dd>
+          <dt>Filhas</dt><dd>${descendentes.length ? descendentes.map((x) => linkEsp(x.id)).join(", ") : "Nenhuma (ainda)"}</dd>
         </dl>
       </div>
     </div>
-    <ul class="notas">${descricoes(g, 5).map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
-    <div class="genes">${genes}<span>Enfeites</span><span>${g.enfeites.length}</span></div>`;
+    <div class="ficha-baixo">
+      <h5>Anotações da naturalista</h5>
+      <ul class="notas">${descricoes(g, 5).map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
+      <h5>Genes</h5>
+      <div class="genes">${genes}<span>Enfeites</span><span></span><span class="valor">${g.enfeites.length}</span></div>
+    </div>`;
   const tela = document.createElement("canvas");
-  tela.width = 480; tela.height = 350;
+  tela.width = 480; tela.height = 360;
   desenharRetrato(tela, g);
   $("#ficha-conteudo .retrato").appendChild(tela);
   const dlg = $("#ficha");
@@ -725,7 +1133,7 @@ async function iniciar() {
     D = await r.json();
   } catch (e) {
     $("#planeta").textContent = "Planeta ainda não descoberto";
-    $("#resumo").textContent = "Rode a simulação pelo menos uma vez (avancar.bat) e recarregue esta página.";
+    $("#atualizado").textContent = "Rode a simulação pelo menos uma vez (avancar.bat) e recarregue esta página.";
     return;
   }
   try {
