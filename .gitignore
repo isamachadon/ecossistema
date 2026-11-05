@@ -3,3 +3,7 @@ __pycache__/
 *.pyc
 # Arquivo temporário usado durante o salvamento
 *.tmp
+# O save do mundo e o diário moram na gaveta "estado" do GitHub (o robô cuida deles).
+# No seu computador eles continuam existindo, só não entram no histórico.
+dados/estado.json
+site/diario.json
