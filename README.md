@@ -4,6 +4,19 @@ Uma simulação de evolução que roda sozinha. Criaturas nascem, comem, fogem,
 se reproduzem com mutações e morrem. Espécies surgem, se separam e somem.
 Tudo fica anotado num diário que você lê pelo site.
 
+## No ar
+
+- **O site:** https://isamachadon.github.io/ecossistema/
+- **O robô:** a cada hora (por volta do minuto 17) o GitHub avança o planeta 1 dia e
+  republica o site sozinho. Dá pra acompanhar em
+  https://github.com/isamachadon/ecossistema/actions
+- **O save do mundo** fica no branch `estado`, que o robô substitui a cada hora.
+- **Trocar um nome** sem abrir o computador: edite `site/nomes.json` direto no site do
+  GitHub (ícone de lápis) e salve. O robô republica o site em 1 ou 2 minutos.
+
+O planeta no seu computador virou um "laboratório": dá pra testar à vontade com
+`avancar.bat` e `ver_site.bat` sem mexer no planeta oficial.
+
 ## Como usar no seu computador
 
 **Avançar a simulação:** dê dois cliques em `avancar.bat`.
